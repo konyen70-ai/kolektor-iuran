@@ -1,0 +1,6 @@
+{
+  "name": "Kolektor Iuran RT",
+  "description": "Aplikasi mobile-first untuk pencatatan dan penagihan iuran warga RT secara praktis menggunakan QR Code dan pencarian cepat.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
