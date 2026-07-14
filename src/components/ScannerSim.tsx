@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, Check, AlertCircle, Sparkles, User, RefreshCw, Home, Shield, Camera, Info } from "lucide-react";
+import { QrCode, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Warga } from "../types";
 // @ts-ignore
@@ -275,42 +275,6 @@ export default function ScannerSim({ onScanSuccess, onSwitchToManual, wargaList 
             Arahkan kamera ke Kode QR Warga
           </div>
         </div>
-      </div>
-
-      {/* Panel Simulasi Uji Coba Pintar */}
-      <div className="bg-blue-50 border border-blue-100/70 rounded-2xl p-3 w-full max-w-[240px] mx-auto flex flex-col gap-2 mt-1 shadow-3xs text-left">
-        <div className="flex gap-1.5 items-start">
-          <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <h4 className="text-[10.5px] font-extrabold text-blue-900 leading-tight">Uji Coba (Mode Simulasi)</h4>
-            <p className="text-[9.5px] text-blue-700 leading-normal">
-              Tidak ada cetakan QR? Klik salah satu warga untuk simulasi scan instan:
-            </p>
-          </div>
-        </div>
-
-        {wargaList.length > 0 ? (
-          <div className="flex flex-col gap-1 mt-0.5 max-h-[100px] overflow-y-auto pr-1 custom-scrollbar">
-            {wargaList.slice(0, 4).map((w, index) => (
-              <button
-                key={w.id}
-                onClick={() => {
-                  const simulatedJson = JSON.stringify({
-                    nama: w.namaKepalaKeluarga,
-                    kk: w.nomorKk
-                  });
-                  triggerScanSuccess(simulatedJson);
-                }}
-                className="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-150 text-[9.5px] font-bold text-slate-700 hover:text-blue-900 rounded-lg text-left transition-all truncate flex justify-between items-center cursor-pointer active:scale-95"
-              >
-                <span className="truncate">#{index + 1} - {w.namaKepalaKeluarga}</span>
-                <span className="text-[8px] font-mono bg-blue-50 px-1 py-0.2 rounded text-blue-600 shrink-0">Pindai</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[9.5px] text-slate-500 italic">Belum ada data warga.</p>
-        )}
       </div>
     </div>
   );

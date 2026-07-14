@@ -36,3 +36,26 @@ export interface IuranBulan {
   tahun: number;
 }
 
+export const formatMonthId = (monthId: string): string => {
+  if (!monthId) return "";
+  const parts = monthId.split("-");
+  if (parts.length !== 2) return monthId;
+  const year = parts[0];
+  const month = parts[1];
+  const monthsMap: { [key: string]: string } = {
+    "01": "JAN",
+    "02": "FEB",
+    "03": "MAR",
+    "04": "APR",
+    "05": "MEI",
+    "06": "JUN",
+    "07": "JUL",
+    "08": "AGU",
+    "09": "SEP",
+    "10": "OKT",
+    "11": "NOV",
+    "12": "DES"
+  };
+  return `${monthsMap[month] || month}-${year}`;
+};
+

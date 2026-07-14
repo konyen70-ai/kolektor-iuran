@@ -6,8 +6,8 @@
 import { Warga, Transaksi } from "../types";
 import { DUMMY_WARGA } from "../data/dummy";
 
-const WARGA_KEY = "kolektor_iuran_warga_v3";
-const TRANSAKSI_KEY = "kolektor_iuran_transaksi_v3";
+const WARGA_KEY = "kolektor_iuran_warga_v4";
+const TRANSAKSI_KEY = "kolektor_iuran_transaksi_v4";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -17,12 +17,13 @@ export class DbService {
    */
   static async getWargaList(): Promise<Warga[]> {
     await delay(100);
-    const localData = localStorage.getItem(WARGA_KEY);
+    let localData = localStorage.getItem(WARGA_KEY);
     if (!localData) {
       localStorage.setItem(WARGA_KEY, JSON.stringify(DUMMY_WARGA));
-      return DUMMY_WARGA;
+      localData = JSON.stringify(DUMMY_WARGA);
     }
-    return JSON.parse(localData);
+    const list: Warga[] = JSON.parse(localData);
+    return list.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
   }
 
   /**

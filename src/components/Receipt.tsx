@@ -5,7 +5,7 @@
 
 import { Check, Share2, PlusCircle, ArrowRight, ShieldCheck, Sparkles, Home } from "lucide-react";
 import { motion } from "motion/react";
-import { Transaksi } from "../types";
+import { Transaksi, formatMonthId } from "../types";
 
 interface ReceiptProps {
   transaction: Transaksi;
@@ -35,20 +35,20 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
   };
 
   const handleShare = () => {
-    const shareText = `*Kolektor Iuran RT 04*\n` +
+    const shareText = `*Kolektor Iuran RT 05 RW 02*\n` +
       `---------------------------------\n` +
       `*BUKTI SETORAN KAS RESMI*\n` +
       `No. Kuitansi: ${transaction.id}\n` +
       `Nama Warga: ${transaction.wargaNama}\n` +
       `Alamat: Rumah No. ${transaction.wargaNomorRumah}\n` +
-      `Bulan Dibayar: ${transaction.bulanBayar.join(", ")}\n` +
+      `Bulan Dibayar: ${transaction.bulanBayar.map(formatMonthId).join(", ")}\n` +
       `Tarif Kategori: ${formatRupiah(transaction.tarifDasar)}/bln\n` +
       `Total Setoran: *${formatRupiah(transaction.totalBayar)}*\n` +
       `Waktu: ${formatDate(transaction.tanggal)}\n` +
       `Metode: ${transaction.metode === "QR_CODE" ? "Scan QR Code" : "Pencarian Manual"}\n` +
       `Status: *LUNAS*\n` +
       `---------------------------------\n` +
-      `Terima kasih telah berpartisipasi membayar iuran lingkungan RT 04 tepat waktu!`;
+      `Terima kasih telah berpartisipasi membayar iuran lingkungan RT 05 RW 02 tepat waktu!`;
 
     if (navigator.share) {
       navigator.share({
@@ -130,8 +130,8 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
             <span className="text-slate-500">Bulan yang Dibayar:</span>
             <div className="flex flex-wrap gap-1 justify-end max-w-[200px]">
               {transaction.bulanBayar.map((b) => (
-                <span key={b} className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md font-mono font-black text-[9px] text-emerald-700">
-                  {b}
+                <span key={b} className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded font-mono font-black text-[9px] text-emerald-700">
+                  {formatMonthId(b)}
                 </span>
               ))}
             </div>

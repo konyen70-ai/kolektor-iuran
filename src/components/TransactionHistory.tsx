@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { Clock, Search, RotateCcw, AlertCircle, FileText, CheckCircle2 } from "lucide-react";
-import { Transaksi } from "../types";
+import { Transaksi, formatMonthId } from "../types";
 
 interface TransactionHistoryProps {
   transactions: Transaksi[];
@@ -123,7 +123,7 @@ export default function TransactionHistory({ transactions, onSelectTransaction, 
                       key={b}
                       className="px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded text-[9px] font-mono font-black text-blue-700"
                     >
-                      {b}
+                      {formatMonthId(b)}
                     </span>
                   ))}
                 </div>
