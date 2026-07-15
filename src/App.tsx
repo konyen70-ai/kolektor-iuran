@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, MoreVertical, Edit, Download, Save, ArrowLeft, ChevronDown, ChevronUp, LogOut } from "lucide-react";
+import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, MoreVertical, Edit, Download, Save, ArrowLeft, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -37,6 +37,10 @@ const getHomeIconColor = (id: string) => {
   return colors[sum % colors.length];
 };
 
+const formatWithDots = (num: number): string => {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenType>("DASHBOARD");
   const [paymentSource, setPaymentSource] = useState<"SCAN" | "MANUAL">("SCAN");
@@ -50,6 +54,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Form states untuk tambah warga baru
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,7 +62,7 @@ export default function App() {
   const [newKk, setNewKk] = useState("");
   const [newNoRumah, setNewNoRumah] = useState("");
   const [newKategori, setNewKategori] = useState<"Warga Biasa" | "Warga Usaha">("Warga Biasa");
-  const [newTarif, setNewTarif] = useState(50000);
+  const [newTarif, setNewTarif] = useState(0);
 
   // State untuk modal cetak QR
   const [activeCardWarga, setActiveCardWarga] = useState<Warga | null>(null);
@@ -144,7 +149,55 @@ export default function App() {
     }
   }, [activeScreen]);
 
-  // Load data dari DbService
+  // Lacak status koneksi internet browser secara realtime
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Hubungkan dengan Firebase Firestore secara real-time
+  useEffect(() => {
+    setIsLoading(true);
+    
+    let unsubscribeWarga: (() => void) | null = null;
+    let unsubscribeTransactions: (() => void) | null = null;
+
+    async function initDb() {
+      try {
+        // Pastikan database ter-seed jika kosong
+        await DbService.getWargaList();
+        
+        unsubscribeWarga = DbService.subscribeWarga((list) => {
+          setWargaList(list);
+          setIsLoading(false);
+        });
+
+        unsubscribeTransactions = DbService.subscribeTransactions((txs) => {
+          setTransactions(txs);
+        });
+      } catch (err) {
+        console.error("Gagal inisialisasi database real-time:", err);
+        setIsLoading(false);
+      }
+    }
+
+    initDb();
+
+    return () => {
+      if (unsubscribeWarga) unsubscribeWarga();
+      if (unsubscribeTransactions) unsubscribeTransactions();
+    };
+  }, []);
+
+  // Load data dari DbService (sebagai fallback/penyegar manual)
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -159,19 +212,15 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   // Update tarif standar otomatis ketika kategori form warga diubah
-  useEffect(() => {
-    setNewTarif(newKategori === "Warga Biasa" ? 50000 : 100000);
-  }, [newKategori]);
+  // useEffect(() => {
+  //   setNewTarif(newKategori === "Warga Biasa" ? 50000 : 100000);
+  // }, [newKategori]);
 
   // Update tarif standar otomatis ketika kategori form edit warga diubah
-  useEffect(() => {
-    setEditTarif(editKategori === "Warga Biasa" ? 50000 : 100000);
-  }, [editKategori]);
+  // useEffect(() => {
+  //   setEditTarif(editKategori === "Warga Biasa" ? 50000 : 100000);
+  // }, [editKategori]);
 
   // Handler Scan QR Berhasil
   const handleScanSuccess = async (scannedId: string) => {
@@ -494,6 +543,8 @@ export default function App() {
     }
   };
 
+
+
   // Sesi Tracker - Ringkasan Hari Ini
   const totalTransaksiHariIni = transactions.length;
   const totalUangDiterimaHariIni = transactions.reduce((acc, curr) => acc + curr.totalBayar, 0);
@@ -753,7 +804,22 @@ export default function App() {
                   </div>
                   <div>
                     <h1 className="text-xs font-black tracking-widest leading-none uppercase text-slate-900">KOLEKTOR IURAN RT</h1>
-                    <span className="text-[10px] text-slate-500 font-bold block mt-1 tracking-wider">RT 05 RW 02</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-slate-500 font-bold tracking-wider">RT 05 RW 02</span>
+                      <span className="text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold tracking-wider uppercase transition-all shrink-0 select-none bg-slate-100 text-slate-600">
+                        {isOnline ? (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-green-600">Cloud</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="text-amber-600">Offline</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -804,7 +870,22 @@ export default function App() {
                 </div>
                 <div>
                   <h1 className="text-xs font-black tracking-widest leading-none uppercase text-slate-900">KOLEKTOR IURAN RT</h1>
-                  <span className="text-[10px] text-slate-500 font-bold block mt-1 tracking-wider">RT 05 RW 02</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-[10px] text-slate-500 font-bold tracking-wider">RT 05 RW 02</span>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold tracking-wider uppercase transition-all shrink-0 select-none bg-slate-100 text-slate-600">
+                      {isOnline ? (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-green-600">Cloud</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                          <span className="text-amber-600">Offline</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1000,7 +1081,7 @@ export default function App() {
                             setNewKk("");
                             setNewNoRumah("");
                             setNewKategori("Warga Biasa");
-                            setNewTarif(50000);
+                            setNewTarif(0);
                             setActiveScreen("ADD_WARGA");
                           }}
                           className="py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] rounded-lg flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
@@ -1230,7 +1311,7 @@ export default function App() {
                             required
                             placeholder="Contoh: Ahmad Subardjo"
                             value={newNama}
-                            onChange={(e) => setNewNama(e.target.value)}
+                            onChange={(e) => setNewNama(e.target.value.toUpperCase())}
                             className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                           />
                         </div>
@@ -1288,10 +1369,14 @@ export default function App() {
                             Tarif Iuran Bulanan (Rp):
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             required
-                            value={newTarif}
-                            onChange={(e) => setNewTarif(Math.max(0, parseInt(e.target.value) || 0))}
+                            value={newTarif === 0 ? "0" : formatWithDots(newTarif)}
+                            onChange={(e) => {
+                              const cleanVal = e.target.value.replace(/\D/g, "");
+                              const num = parseInt(cleanVal, 10) || 0;
+                              setNewTarif(num);
+                            }}
                             className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                           />
                         </div>
@@ -1356,7 +1441,7 @@ export default function App() {
                             required
                             placeholder="Contoh: Ahmad Subardjo"
                             value={editNama}
-                            onChange={(e) => setEditNama(e.target.value)}
+                            onChange={(e) => setEditNama(e.target.value.toUpperCase())}
                             className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                           />
                         </div>
@@ -1414,10 +1499,14 @@ export default function App() {
                             Tarif Iuran Bulanan (Rp):
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             required
-                            value={editTarif}
-                            onChange={(e) => setEditTarif(Math.max(0, parseInt(e.target.value) || 0))}
+                            value={editTarif === 0 ? "0" : formatWithDots(editTarif)}
+                            onChange={(e) => {
+                              const cleanVal = e.target.value.replace(/\D/g, "");
+                              const num = parseInt(cleanVal, 10) || 0;
+                              setEditTarif(num);
+                            }}
                             className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                           />
                         </div>
@@ -1494,19 +1583,21 @@ export default function App() {
         </AnimatePresence>
 
         {/* Floating Recent Transactions Toggle Arrow */}
-        <div className="absolute bottom-14 right-4 z-40">
-          <button
-            onClick={() => setShowHistoryTray(!showHistoryTray)}
-            className="w-8 h-8 bg-white hover:bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center shadow-md shadow-blue-500/5 cursor-pointer transition-all duration-200 active:scale-90"
-            title="Riwayat Transaksi Terbaru"
-          >
-            <ChevronUp
-              className={`w-4 h-4 text-blue-500 stroke-[1.5] transition-transform duration-300 ${
-                showHistoryTray ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-        </div>
+        {activeScreen === "DASHBOARD" && (
+          <div className="absolute bottom-14 right-4 z-40">
+            <button
+              onClick={() => setShowHistoryTray(!showHistoryTray)}
+              className="w-8 h-8 bg-white hover:bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center shadow-md shadow-blue-500/5 cursor-pointer transition-all duration-200 active:scale-90"
+              title="Riwayat Transaksi Terbaru"
+            >
+              <ChevronUp
+                className={`w-4 h-4 text-blue-500 stroke-[1.5] transition-transform duration-300 ${
+                  showHistoryTray ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Recent Transactions Bottom Sheet Drawer */}
         <AnimatePresence>

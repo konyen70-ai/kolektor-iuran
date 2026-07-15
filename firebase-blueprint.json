@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Warga": {
+      "title": "Warga",
+      "description": "Data kependudukan warga RT",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID warga internal" },
+        "qrId": { "type": "string", "description": "ID QR Code unik" },
+        "nomorKk": { "type": "string", "description": "Nomor KK" },
+        "namaKepalaKeluarga": { "type": "string", "description": "Nama Kepala Keluarga" },
+        "nomorRumah": { "type": "string", "description": "Nomor rumah" },
+        "kategoriIuran": { "type": "string", "enum": ["Warga Biasa", "Warga Usaha"] },
+        "tarifPerBulan": { "type": "number", "description": "Tarif per bulan" },
+        "historyPembayaran": { "type": "array", "items": { "type": "string" }, "description": "Riwayat bulan terbayar" }
+      },
+      "required": ["id", "qrId", "nomorKk", "namaKepalaKeluarga", "nomorRumah", "kategoriIuran", "tarifPerBulan", "historyPembayaran"]
+    },
+    "Transaksi": {
+      "title": "Transaksi",
+      "description": "Transaksi iuran warga",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID transaksi" },
+        "wargaId": { "type": "string", "description": "ID warga terkait" },
+        "wargaNama": { "type": "string", "description": "Nama warga terkait" },
+        "wargaNomorRumah": { "type": "string", "description": "Nomor rumah warga terkait" },
+        "bulanBayar": { "type": "array", "items": { "type": "string" }, "description": "Bulan yang dibayar" },
+        "tarifDasar": { "type": "number", "description": "Tarif dasar iuran" },
+        "totalBayar": { "type": "number", "description": "Total bayar transaksi" },
+        "tanggal": { "type": "string", "format": "date-time", "description": "Tanggal pembayaran" },
+        "metode": { "type": "string", "enum": ["QR_CODE", "MANUAL"] },
+        "status": { "type": "string", "enum": ["LUNAS"] },
+        "catatan": { "type": "string", "description": "Catatan opsional" }
+      },
+      "required": ["id", "wargaId", "wargaNama", "wargaNomorRumah", "bulanBayar", "tarifDasar", "totalBayar", "tanggal", "metode", "status"]
+    }
+  },
+  "firestore": {
+    "warga/{wargaId}": {
+      "schema": "Warga",
+      "description": "Koleksi data warga"
+    },
+    "transactions/{transactionId}": {
+      "schema": "Transaksi",
+      "description": "Koleksi transaksi pembayaran"
+    }
+  }
+}

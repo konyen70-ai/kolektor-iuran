@@ -5,25 +5,103 @@
 
 import { Warga, Transaksi } from "../types";
 import { DUMMY_WARGA } from "../data/dummy";
+import { db } from "./firebase";
+import { getAuth } from "firebase/auth";
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  onSnapshot,
+} from "firebase/firestore";
 
-const WARGA_KEY = "kolektor_iuran_warga_v4";
-const TRANSAKSI_KEY = "kolektor_iuran_transaksi_v4";
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const auth = getAuth();
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || null,
+      isAnonymous: auth.currentUser?.isAnonymous || null,
+      tenantId: auth.currentUser?.tenantId || null,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 export class DbService {
   /**
    * Mengambil semua daftar warga.
+   * Jika database Firestore masih kosong, akan diisi dengan DUMMY_WARGA (Seeding).
    */
   static async getWargaList(): Promise<Warga[]> {
-    await delay(100);
-    let localData = localStorage.getItem(WARGA_KEY);
-    if (!localData) {
-      localStorage.setItem(WARGA_KEY, JSON.stringify(DUMMY_WARGA));
-      localData = JSON.stringify(DUMMY_WARGA);
+    const path = "warga";
+    try {
+      const colRef = collection(db, path);
+      const snapshot = await getDocs(colRef);
+      
+      const isSeeded = localStorage.getItem("firebase_seeded_v4") === "true";
+      if (snapshot.empty && !isSeeded) {
+        const batch = writeBatch(db);
+        DUMMY_WARGA.forEach((w) => {
+          batch.set(doc(db, path, w.id), w);
+        });
+        await batch.commit();
+        localStorage.setItem("firebase_seeded_v4", "true");
+        return DUMMY_WARGA.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
+      }
+
+      const list: Warga[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Warga);
+      });
+
+      if (list.length > 0) {
+        localStorage.setItem("firebase_seeded_v4", "true");
+      }
+
+      return list.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, path);
     }
-    const list: Warga[] = JSON.parse(localData);
-    return list.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
   }
 
   /**
@@ -31,7 +109,6 @@ export class DbService {
    * Mendukung format plain text KK ataupun format JSON kependudukan.
    */
   static async getWargaByQrId(qrId: string): Promise<Warga | null> {
-    await delay(100);
     const list = await this.getWargaList();
     const cleanId = qrId.trim();
 
@@ -69,10 +146,9 @@ export class DbService {
   /**
    * Pencarian fleksibel realtime berdasarkan Nama, Nomor KK, Nomor Rumah, atau ID.
    */
-  static async searchWarga(query: string, filterType: "SEMUA" | "NAMA" | "NOMOR_RUMAH" | "ID" = "SEMUA"): Promise<Warga[]> {
-    await delay(80);
+  static async searchWarga(queryStr: string, filterType: "SEMUA" | "NAMA" | "NOMOR_RUMAH" | "ID" = "SEMUA"): Promise<Warga[]> {
     const list = await this.getWargaList();
-    const q = query.toLowerCase().trim();
+    const q = queryStr.toLowerCase().trim();
     if (!q) return list;
 
     return list.filter((w) => {
@@ -92,7 +168,7 @@ export class DbService {
   }
 
   /**
-   * Menambahkan warga baru ke database lokal.
+   * Menambahkan warga baru ke database Firestore.
    */
   static async addWarga(
     namaKepalaKeluarga: string,
@@ -101,7 +177,6 @@ export class DbService {
     kategoriIuran: "Warga Biasa" | "Warga Usaha",
     tarifPerBulan: number
   ): Promise<Warga> {
-    await delay(120);
     const list = await this.getWargaList();
     // Generate simple incremental ID
     const num = list.length > 0 ? Math.max(...list.map((w) => parseInt(w.id.replace("W-", "")) || 0)) + 1 : 1;
@@ -118,9 +193,13 @@ export class DbService {
       historyPembayaran: [],
     };
 
-    list.push(newWarga);
-    localStorage.setItem(WARGA_KEY, JSON.stringify(list));
-    return newWarga;
+    const path = `warga/${newId}`;
+    try {
+      await setDoc(doc(db, "warga", newId), newWarga);
+      return newWarga;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
   }
 
   /**
@@ -134,48 +213,62 @@ export class DbService {
     kategoriIuran: "Warga Biasa" | "Warga Usaha",
     tarifPerBulan: number
   ): Promise<Warga> {
-    await delay(120);
-    const list = await this.getWargaList();
-    const idx = list.findIndex((w) => w.id === wargaId);
-    if (idx === -1) {
-      throw new Error("Warga tidak ditemukan");
+    const path = `warga/${wargaId}`;
+    try {
+      const docRef = doc(db, "warga", wargaId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        throw new Error("Warga tidak ditemukan");
+      }
+
+      const existingData = docSnap.data() as Warga;
+      const updatedWarga: Warga = {
+        ...existingData,
+        namaKepalaKeluarga: namaKepalaKeluarga.trim(),
+        nomorKk: nomorKk.trim(),
+        qrId: nomorKk.trim(),
+        nomorRumah: nomorRumah.trim(),
+        kategoriIuran: kategoriIuran,
+        tarifPerBulan: tarifPerBulan,
+      };
+
+      await setDoc(docRef, updatedWarga);
+      return updatedWarga;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
-
-    const updatedWarga: Warga = {
-      ...list[idx],
-      namaKepalaKeluarga: namaKepalaKeluarga.trim(),
-      nomorKk: nomorKk.trim(),
-      qrId: nomorKk.trim(),
-      nomorRumah: nomorRumah.trim(),
-      kategoriIuran: kategoriIuran,
-      tarifPerBulan: tarifPerBulan,
-    };
-
-    list[idx] = updatedWarga;
-    localStorage.setItem(WARGA_KEY, JSON.stringify(list));
-    return updatedWarga;
   }
 
   /**
    * Menghapus data warga berdasarkan ID.
    */
   static async deleteWarga(wargaId: string): Promise<void> {
-    await delay(100);
-    const list = await this.getWargaList();
-    const filtered = list.filter((w) => w.id !== wargaId);
-    localStorage.setItem(WARGA_KEY, JSON.stringify(filtered));
+    const path = `warga/${wargaId}`;
+    try {
+      await deleteDoc(doc(db, "warga", wargaId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
   }
 
   /**
    * Mengambil riwayat transaksi.
    */
   static async getTransactions(): Promise<Transaksi[]> {
-    await delay(100);
-    const localData = localStorage.getItem(TRANSAKSI_KEY);
-    if (!localData) {
-      return [];
+    const path = "transactions";
+    try {
+      const colRef = collection(db, path);
+      const snapshot = await getDocs(colRef);
+      
+      const list: Transaksi[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Transaksi);
+      });
+
+      return list.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, path);
     }
-    return JSON.parse(localData);
   }
 
   /**
@@ -189,37 +282,39 @@ export class DbService {
     metode: "QR_CODE" | "MANUAL",
     catatan?: string
   ): Promise<Transaksi> {
-    await delay(150);
-
-    const wargaList = await this.getWargaList();
-    const wargaIdx = wargaList.findIndex((w) => w.id === wargaId);
-    if (wargaIdx === -1) {
-      throw new Error("Warga tidak ditemukan");
-    }
-
-    const warga = wargaList[wargaIdx];
-
-    // Tambahkan bulan baru ke history pembayaran warga
-    const newHistory = [...warga.historyPembayaran];
-    bulanBayar.forEach((b) => {
-      if (!newHistory.includes(b)) {
-        newHistory.push(b);
+    const wargaPath = `warga/${wargaId}`;
+    let warga: Warga;
+    try {
+      const wargaRef = doc(db, "warga", wargaId);
+      const wargaSnap = await getDoc(wargaRef);
+      if (!wargaSnap.exists()) {
+        throw new Error("Warga tidak ditemukan");
       }
-    });
-    newHistory.sort();
+      warga = wargaSnap.data() as Warga;
 
-    // Simpan data warga terupdate
-    wargaList[wargaIdx] = {
-      ...warga,
-      historyPembayaran: newHistory,
-    };
-    localStorage.setItem(WARGA_KEY, JSON.stringify(wargaList));
+      // Tambahkan bulan baru ke history pembayaran warga
+      const newHistory = [...warga.historyPembayaran];
+      bulanBayar.forEach((b) => {
+        if (!newHistory.includes(b)) {
+          newHistory.push(b);
+        }
+      });
+      newHistory.sort();
+
+      // Simpan data warga terupdate
+      await updateDoc(wargaRef, {
+        historyPembayaran: newHistory,
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, wargaPath);
+    }
 
     // Jam & tanggal saat ini
     const now = new Date();
+    const newTxId = `TX-${now.getTime()}`;
 
     const newTx: Transaksi = {
-      id: `TX-${now.getTime()}`,
+      id: newTxId,
       wargaId: warga.id,
       wargaNama: warga.namaKepalaKeluarga,
       wargaNomorRumah: warga.nomorRumah,
@@ -229,22 +324,81 @@ export class DbService {
       tanggal: now.toISOString(),
       metode: metode,
       status: "LUNAS",
-      catatan: catatan,
+      catatan: catatan || "",
     };
 
-    const transactions = await this.getTransactions();
-    transactions.unshift(newTx);
-    localStorage.setItem(TRANSAKSI_KEY, JSON.stringify(transactions));
-
-    return newTx;
+    const txPath = `transactions/${newTxId}`;
+    try {
+      await setDoc(doc(db, "transactions", newTxId), newTx);
+      return newTx;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, txPath);
+    }
   }
 
   /**
-   * Mereset seluruh database local ke semula.
+   * Mereset seluruh database Firestore dan Local ke semula.
    */
   static async resetDatabase(): Promise<void> {
-    await delay(100);
-    localStorage.removeItem(WARGA_KEY);
-    localStorage.removeItem(TRANSAKSI_KEY);
+    localStorage.removeItem("firebase_seeded_v4");
+
+    try {
+      // Hapus seluruh warga
+      const wargaSnap = await getDocs(collection(db, "warga"));
+      const wargaBatch = writeBatch(db);
+      wargaSnap.forEach((d) => {
+        wargaBatch.delete(d.ref);
+      });
+      await wargaBatch.commit();
+
+      // Hapus seluruh transaksi
+      const txSnap = await getDocs(collection(db, "transactions"));
+      const txBatch = writeBatch(db);
+      txSnap.forEach((d) => {
+        txBatch.delete(d.ref);
+      });
+      await txBatch.commit();
+
+      // Reseed
+      await this.getWargaList();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, "all");
+    }
+  }
+
+  /**
+   * Berlangganan (Subscribe) perubahan warga secara real-time.
+   */
+  static subscribeWarga(callback: (warga: Warga[]) => void) {
+    const path = "warga";
+    const colRef = collection(db, path);
+    return onSnapshot(colRef, (snapshot) => {
+      const list: Warga[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Warga);
+      });
+      const sorted = list.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
+      callback(sorted);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, path);
+    });
+  }
+
+  /**
+   * Berlangganan (Subscribe) perubahan transaksi secara real-time.
+   */
+  static subscribeTransactions(callback: (txs: Transaksi[]) => void) {
+    const path = "transactions";
+    const colRef = collection(db, path);
+    return onSnapshot(colRef, (snapshot) => {
+      const list: Transaksi[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Transaksi);
+      });
+      const sorted = list.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+      callback(sorted);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, path);
+    });
   }
 }
