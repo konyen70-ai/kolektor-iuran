@@ -1,9 +1,9 @@
 {
-  "id": "/",
+  "id": "kolektor-iuran-rt-05",
   "short_name": "Iuran RT",
   "name": "Kolektor Iuran RT 05",
   "description": "Aplikasi Kolektor Iuran RT 05 RW 02 - Pembayaran, Laporan & Data Warga",
-  "start_url": "/",
+  "start_url": "/?pwa=true",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -15,7 +15,13 @@
       "src": "/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
