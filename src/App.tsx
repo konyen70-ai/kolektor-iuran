@@ -128,7 +128,7 @@ export default function App() {
 
   // States untuk Menu Tambahan (Laporan, Export, Import, Pengaturan)
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState<"NONE" | "LAPORAN" | "EXPORT" | "IMPORT" | "PENGATURAN">("NONE");
+  const [activeModal, setActiveModal] = useState<"NONE" | "LAPORAN" | "EXPORT" | "IMPORT" | "PENGATURAN" | "PWA_GUIDE">("NONE");
 
   // State Laporan
   const [reportFilterMonth, setReportFilterMonth] = useState(CURRENT_MONTH_ID);
@@ -1385,17 +1385,19 @@ export default function App() {
                         >
                           <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
                         </button>
-                        {deferredPrompt && (
-                          <button
-                            onClick={() => {
-                               setIsHeaderMenuOpen(false);
+                        <button
+                          onClick={() => {
+                             setIsHeaderMenuOpen(false);
+                             if (deferredPrompt) {
                                handleInstallPWA();
-                            }}
-                            className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
-                          >
-                            <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> Instal Aplikasi
-                          </button>
-                        )}
+                             } else {
+                               setActiveModal("PWA_GUIDE");
+                             }
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
+                        >
+                          <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> {deferredPrompt ? "Instal Aplikasi Native" : "Panduan Instal HP"}
+                        </button>
                       </div>
                     </>
                   )}
@@ -1520,17 +1522,19 @@ export default function App() {
                       >
                         <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
                       </button>
-                      {deferredPrompt && (
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          if (deferredPrompt) {
                             handleInstallPWA();
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
-                        >
-                          <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> Instal Aplikasi
-                        </button>
-                      )}
+                          } else {
+                            setActiveModal("PWA_GUIDE");
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
+                      >
+                        <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> {deferredPrompt ? "Instal Aplikasi Native" : "Panduan Instal HP"}
+                      </button>
                     </div>
                   </>
                 )}
@@ -1553,36 +1557,6 @@ export default function App() {
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* PWA Install Banner */}
-          {deferredPrompt && showInstallBanner && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 shrink-0 flex items-center justify-between shadow-sm relative z-20 border-b border-blue-700/30"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">📱</span>
-                <div className="text-left">
-                  <h4 className="text-[11px] font-black uppercase tracking-wider leading-none">Instal Aplikasi RT</h4>
-                  <p className="text-[9.5px] font-medium text-blue-100 mt-1">Simpan di Home Screen biar mirip App asli!</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleInstallPWA}
-                  className="px-3 py-1.5 bg-white text-blue-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 shadow-sm cursor-pointer"
-                >
-                  INSTAL
-                </button>
-                <button
-                  onClick={() => setShowInstallBanner(false)}
-                  className="p-1 hover:bg-white/10 rounded text-white/80 hover:text-white cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
 
           {/* RINGKASAN DATA HARI INI - Selalu terpampang di halaman penjelajahan utama */}
           {(activeScreen === "DASHBOARD" || activeScreen === "SCAN" || activeScreen === "MANAGE") && (
@@ -2640,12 +2614,14 @@ export default function App() {
                     {activeModal === "EXPORT" && "📤"}
                     {activeModal === "IMPORT" && "📥"}
                     {activeModal === "PENGATURAN" && "⚙️"}
+                    {activeModal === "PWA_GUIDE" && "📱"}
                   </span>
                   <h3 className="text-xs font-black tracking-wider text-slate-800 uppercase font-sans">
                     {activeModal === "LAPORAN" && "LAPORAN PENDAPATAN"}
                     {activeModal === "EXPORT" && "EXPORT EXCEL"}
                     {activeModal === "IMPORT" && "IMPORT EXCEL"}
                     {activeModal === "PENGATURAN" && "PENGATURAN & STORAGE"}
+                    {activeModal === "PWA_GUIDE" && "PANDUAN INSTAL APLIKASI HANDPHONE"}
                   </h3>
                 </div>
                 <button
@@ -3334,6 +3310,107 @@ export default function App() {
                           </div>
                         );
                       })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* MODAL PANDUAN PWA INSTAL APLIKASI HP */}
+                {activeModal === "PWA_GUIDE" && (
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
+                    <div className="bg-gradient-to-br from-blue-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg border border-blue-500/30 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 border border-blue-400/40 shadow-xs">
+                          <Smartphone className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-wider text-white">Aplikasi Kolektor Iuran RT 05</h3>
+                          <p className="text-xs text-blue-200">Panduan Menginstal di HP Android & iPhone</p>
+                        </div>
+                      </div>
+
+                      {deferredPrompt ? (
+                        <div className="bg-blue-600/30 border border-blue-400/40 rounded-xl p-3 text-xs space-y-2">
+                          <p className="font-bold text-blue-100">
+                            ✨ Browser HP Anda sudah mendukung instalasi otomatis 1-klik!
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveModal("NONE");
+                              handleInstallPWA();
+                            }}
+                            className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <Smartphone className="w-4 h-4" />
+                            <span>INSTAL LANGSUNG SEKARANG</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Aplikasi ini menggunakan teknologi <strong>Progressive Web App (PWA)</strong>. Anda dapat menyimpannya langsung ke Layar Utama (Homescreen) HP tanpa perlu download dari Google Play Store / App Store.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Panduan Android Google Chrome & Edge */}
+                    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-3 text-slate-800">
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <span className="text-base">🤖</span>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Cara Instal di Android (Google Chrome / Edge)</h4>
+                      </div>
+
+                      <ol className="text-xs space-y-2.5 text-slate-700 font-medium pl-1">
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                          <span>Buka menu browser dengan mengetuk <strong>Titik Tiga (⋮)</strong> di pojok kanan atas layar HP Anda.</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                          <span>Pilih menu <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama" (Add to Home screen)</strong>.</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                          <span>Ketuk tombol <strong>"Instal" / "Tambah"</strong> pada dialog konfirmasi yang muncul.</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                          <span>Selesai! Icon <strong>"Iuran RT"</strong> akan muncul di Homescreen HP Anda. Saat dibuka, <strong>bilah alamat browser tidak akan muncul lagi</strong> (Tampilan Fullscreen / Standalone).</span>
+                        </li>
+                      </ol>
+                    </div>
+
+                    {/* Panduan iPhone / iPad Safari */}
+                    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-3 text-slate-800">
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <span className="text-base">🍎</span>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Cara Instal di iPhone / iPad (Safari)</h4>
+                      </div>
+
+                      <ol className="text-xs space-y-2.5 text-slate-700 font-medium pl-1">
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                          <span>Buka aplikasi menggunakan browser <strong>Safari</strong> di iPhone Anda.</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                          <span>Ketuk ikon <strong>Bagikan / Share (kotak dengan panah ke atas)</strong> di bagian bawah layar.</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                          <span>Geser ke bawah lalu pilih <strong>"Tambah ke Utama" (Add to Home Screen)</strong>.</span>
+                        </li>
+                      </ol>
+                    </div>
+
+                    {/* Catatan Buka di Tab Baru */}
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+                      <p className="font-extrabold flex items-center gap-1.5 text-amber-950">
+                        <span>💡</span>
+                        <span>Catatan Penting Tampilan Standalone:</span>
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-amber-800">
+                        Jika Anda saat ini melihat aplikasi di dalam pratinjau editor AI Studio (iframe), pastikan untuk mengetuk tombol <strong>"Buka di Tab Baru" / "Open in New Tab"</strong> di pojok kanan atas browser terlebih dahulu agar fitur instalasi PWA dan tampilan tanpa bilah alamat dapat aktif sempurna di HP Anda.
+                      </p>
                     </div>
                   </div>
                 )}

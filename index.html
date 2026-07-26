@@ -1,15 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Kolektor Iuran RT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Kolektor Iuran RT 05</title>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/jpeg" href="/icon.jpg" />
-    <link rel="apple-touch-icon" href="/icon-192.jpg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Iuran RT 05" />
+    <meta name="application-name" content="Kolektor Iuran RT" />
   </head>
   <body>
     <div id="root"></div>
@@ -18,8 +22,8 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("/sw.js")
-            .then((reg) => console.log("[PWA] Service Worker registered successfully:", reg.scope))
-            .catch((err) => console.error("[PWA] Service Worker registration failed:", err));
+            .then((reg) => console.log("[PWA] Service Worker registered scope:", reg.scope))
+            .catch((err) => console.error("[PWA] SW register error:", err));
         });
       }
     </script>

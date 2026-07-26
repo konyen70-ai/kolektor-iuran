@@ -1,21 +1,40 @@
 {
+  "id": "/",
   "short_name": "Iuran RT",
-  "name": "Kolektor Iuran RT",
-  "icons": [
-    {
-      "src": "/icon-192.jpg",
-      "type": "image/jpeg",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/icon-512.jpg",
-      "type": "image/jpeg",
-      "sizes": "512x512"
-    }
-  ],
+  "name": "Kolektor Iuran RT 05",
+  "description": "Aplikasi Kolektor Iuran RT 05 RW 02 - Pembayaran, Laporan & Data Warga",
   "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "display": "standalone",
-  "orientation": "portrait"
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["finance", "utilities"]
 }
