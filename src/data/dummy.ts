@@ -3,12 +3,65 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Warga } from "../types";
+import { Warga, IuranItemConfig, KategoriIuran } from "../types";
+
+// Default configuration for 4 initial iuran types
+export const DEFAULT_IURAN_CONFIG: IuranItemConfig[] = [
+  {
+    id: "kas",
+    nama: "Iuran Kas Bulanan",
+    isKategoriBased: false,
+    nominalDefault: 10000,
+  },
+  {
+    id: "sampah",
+    nama: "Iuran Sampah",
+    isKategoriBased: true,
+    nominalByKategori: {
+      "Warga Biasa": 15000,
+      "Warga Usaha": 25000,
+      "Warga Luar": 20000,
+    },
+  },
+  {
+    id: "kematian",
+    nama: "Iuran Kematian",
+    isKategoriBased: false,
+    nominalDefault: 5000,
+  },
+  {
+    id: "sosial",
+    nama: "Iuran Sosial",
+    isKategoriBased: false,
+    nominalDefault: 5000,
+  },
+];
+
+export const calculateTotalTarif = (
+  kategori: KategoriIuran,
+  iuranAktifIds: string[] | undefined,
+  configList: IuranItemConfig[] = DEFAULT_IURAN_CONFIG
+): number => {
+  const activeIds = (!iuranAktifIds || iuranAktifIds.length === 0)
+    ? configList.map((item) => item.id)
+    : iuranAktifIds;
+
+  return configList.reduce((total, item) => {
+    if (activeIds.includes(item.id)) {
+      if (item.isKategoriBased && item.nominalByKategori) {
+        return total + (item.nominalByKategori[kategori] ?? 0);
+      }
+      return total + (item.nominalDefault ?? 0);
+    }
+    return total;
+  }, 0);
+};
 
 // Rate configurations for categories
 export const TARIF_KATEGORI = {
-  "Warga Biasa": 50000,
-  "Warga Usaha": 100000,
+  "Warga Biasa": 35000,
+  "Warga Usaha": 45000,
+  "Warga Luar": 40000,
 };
 
 // Generates 4 initial warga with realistic name, 16-digit KK and no block
@@ -20,9 +73,12 @@ export const generateDummyWarga = (): Warga[] => {
       nomorKk: "3201234567890001",
       namaKepalaKeluarga: "Budi Santoso",
       nomorRumah: "12",
+      nomorHp: "081234567890",
       kategoriIuran: "Warga Biasa",
-      tarifPerBulan: 50000,
-      historyPembayaran: ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"],
+      iuranAktif: ["kas", "sampah", "kematian", "sosial"],
+      tarifPerBulan: 35000,
+      historyPembayaran: [],
+      namaKolektor: "Is Tentrem",
     },
     {
       id: "W-02",
@@ -30,9 +86,12 @@ export const generateDummyWarga = (): Warga[] => {
       nomorKk: "3201234567890002",
       namaKepalaKeluarga: "Agus Wijaya",
       nomorRumah: "14",
+      nomorHp: "081987654321",
       kategoriIuran: "Warga Usaha",
-      tarifPerBulan: 100000,
-      historyPembayaran: ["2026-01", "2026-02", "2026-03", "2026-04"],
+      iuranAktif: ["kas", "sampah", "kematian", "sosial"],
+      tarifPerBulan: 45000,
+      historyPembayaran: [],
+      namaKolektor: "Is Tentrem",
     },
     {
       id: "W-03",
@@ -40,9 +99,12 @@ export const generateDummyWarga = (): Warga[] => {
       nomorKk: "3201234567890003",
       namaKepalaKeluarga: "Siti Rahmawati",
       nomorRumah: "15",
+      nomorHp: "085712345678",
       kategoriIuran: "Warga Biasa",
-      tarifPerBulan: 50000,
-      historyPembayaran: ["2026-01", "2026-02"],
+      iuranAktif: ["kas", "sampah", "kematian", "sosial"],
+      tarifPerBulan: 35000,
+      historyPembayaran: [],
+      namaKolektor: "Is Tentrem",
     },
     {
       id: "W-04",
@@ -50,9 +112,12 @@ export const generateDummyWarga = (): Warga[] => {
       nomorKk: "3201234567890004",
       namaKepalaKeluarga: "Hendra Saputra",
       nomorRumah: "18",
+      nomorHp: "082134567899",
       kategoriIuran: "Warga Biasa",
-      tarifPerBulan: 50000,
+      iuranAktif: ["kas", "sampah", "kematian", "sosial"],
+      tarifPerBulan: 35000,
       historyPembayaran: [],
+      namaKolektor: "Is Tentrem",
     }
   ];
 };

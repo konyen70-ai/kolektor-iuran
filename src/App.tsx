@@ -4,18 +4,23 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, MoreVertical, Edit, Download, Save, ArrowLeft, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff } from "lucide-react";
+import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, MoreVertical, Edit, Download, Save, ArrowLeft, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff, FileSpreadsheet, Upload, Database, Lock, KeyRound, AlertCircle, BarChart3, TrendingUp, Settings, Smartphone, Phone, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { Warga, Transaksi, formatMonthId } from "./types";
+import * as XLSX from "xlsx";
+import { Warga, Transaksi, formatMonthId, KategoriIuran, IuranItemConfig } from "./types";
 import { DbService } from "./services/db";
-import { LIST_BULAN_2026, CURRENT_MONTH_ID } from "./data/dummy";
+import { LIST_BULAN_2026, CURRENT_MONTH_ID, DEFAULT_IURAN_CONFIG, calculateTotalTarif } from "./data/dummy";
 import ScannerSim from "./components/ScannerSim";
 import ManualSearch from "./components/ManualSearch";
+import { db } from "./services/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import WargaDetails from "./components/WargaDetails";
 import Receipt from "./components/Receipt";
 import TransactionHistory from "./components/TransactionHistory";
+import LaporanMatrixModal from "./components/LaporanMatrixModal";
+import LaporanPendapatanModal from "./components/LaporanPendapatanModal";
 
 type ScreenType = "DASHBOARD" | "SCAN" | "MANUAL" | "MANAGE" | "PAYMENT" | "RECEIPT" | "EDIT_WARGA" | "ADD_WARGA";
 
@@ -56,13 +61,31 @@ export default function App() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // State Pengaturan Jenis & Tarif Iuran
+  const [iuranConfigList, setIuranConfigList] = useState<IuranItemConfig[]>(() => {
+    const saved = localStorage.getItem("kolektor_iuran_config");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return DEFAULT_IURAN_CONFIG;
+  });
+  const [iuranSaveMessage, setIuranSaveMessage] = useState<string | null>(null);
+
   // Form states untuk tambah warga baru
   const [showAddForm, setShowAddForm] = useState(false);
   const [newNama, setNewNama] = useState("");
   const [newKk, setNewKk] = useState("");
   const [newNoRumah, setNewNoRumah] = useState("");
-  const [newKategori, setNewKategori] = useState<"Warga Biasa" | "Warga Usaha">("Warga Biasa");
-  const [newTarif, setNewTarif] = useState(0);
+  const [newNomorHp, setNewNomorHp] = useState("");
+  const [newKategori, setNewKategori] = useState<KategoriIuran>("Warga Biasa");
+  const [newNamaKolektor, setNewNamaKolektor] = useState("Is Tentrem");
+  const [newIuranMode, setNewIuranMode] = useState<"SEMUA" | "KUSTOM">("SEMUA");
+  const [newIuranAktif, setNewIuranAktif] = useState<string[]>([]);
+  const [newTarif, setNewTarif] = useState(35000);
 
   // State untuk modal cetak QR
   const [activeCardWarga, setActiveCardWarga] = useState<Warga | null>(null);
@@ -73,8 +96,16 @@ export default function App() {
   const [editNama, setEditNama] = useState("");
   const [editKk, setEditKk] = useState("");
   const [editNoRumah, setEditNoRumah] = useState("");
-  const [editKategori, setEditKategori] = useState<"Warga Biasa" | "Warga Usaha">("Warga Biasa");
-  const [editTarif, setEditTarif] = useState(50000);
+  const [editNomorHp, setEditNomorHp] = useState("");
+  const [editKategori, setEditKategori] = useState<KategoriIuran>("Warga Biasa");
+  const [editNamaKolektor, setEditNamaKolektor] = useState("Is Tentrem");
+  const [editIuranMode, setEditIuranMode] = useState<"SEMUA" | "KUSTOM">("SEMUA");
+  const [editIuranAktif, setEditIuranAktif] = useState<string[]>([]);
+  const [editTarif, setEditTarif] = useState(35000);
+
+  // State Pra-tinjau Laporan Matrix
+  const [showMatrixModal, setShowMatrixModal] = useState(false);
+  const [showPendapatanModal, setShowPendapatanModal] = useState(false);
 
   // State untuk konfirmasi hapus warga (alternatif confirm browser agar aman di iframe)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -89,6 +120,32 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [showHistoryTray, setShowHistoryTray] = useState(false);
+
+  // PWA Install States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(true);
+
+  // States untuk Menu Tambahan (Laporan, Export, Import, Pengaturan)
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<"NONE" | "LAPORAN" | "EXPORT" | "IMPORT" | "PENGATURAN">("NONE");
+
+  // State Laporan
+  const [reportFilterMonth, setReportFilterMonth] = useState(CURRENT_MONTH_ID);
+  const [reportSearchQuery, setReportSearchQuery] = useState("");
+
+  // State Pengaturan
+  const [settingsRoleToChange, setSettingsRoleToChange] = useState<"admin" | "kolektor">("admin");
+  const [settingsOldPassword, setSettingsOldPassword] = useState("");
+  const [settingsNewPassword, setSettingsNewPassword] = useState("");
+  const [settingsConfirmPassword, setSettingsConfirmPassword] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // State Import Excel
+  const [importDragOver, setImportDragOver] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importParsedWarga, setImportParsedWarga] = useState<Warga[]>([]);
+  const [importSuccessCount, setImportSuccessCount] = useState<number | null>(null);
 
   // Ref untuk mendeteksi event popstate guna menghindari loop pushState ganda
   const isPopStateRef = useRef(false);
@@ -114,6 +171,43 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Effect untuk mendeteksi event instalasi PWA
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log("[PWA] beforeinstallprompt event fired");
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsAppInstalled(true);
+      console.log("[PWA] App was installed successfully");
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsAppInstalled(true);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PWA] User response to the install prompt: ${outcome}`);
+    if (outcome === "accepted") {
+      setDeferredPrompt(null);
+    }
+  };
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -212,15 +306,39 @@ export default function App() {
     }
   };
 
-  // Update tarif standar otomatis ketika kategori form warga diubah
-  // useEffect(() => {
-  //   setNewTarif(newKategori === "Warga Biasa" ? 50000 : 100000);
-  // }, [newKategori]);
+  // Sync newIuranAktif & newTarif ketika kategori/mode/iuranConfig berubah
+  useEffect(() => {
+    if (newIuranMode === "SEMUA") {
+      const allIds = iuranConfigList.map((item) => item.id);
+      setNewIuranAktif(allIds);
+      setNewTarif(calculateTotalTarif(newKategori, allIds, iuranConfigList));
+    } else {
+      setNewTarif(calculateTotalTarif(newKategori, newIuranAktif, iuranConfigList));
+    }
+  }, [newKategori, newIuranMode, iuranConfigList]);
 
-  // Update tarif standar otomatis ketika kategori form edit warga diubah
-  // useEffect(() => {
-  //   setEditTarif(editKategori === "Warga Biasa" ? 50000 : 100000);
-  // }, [editKategori]);
+  useEffect(() => {
+    if (newIuranMode === "KUSTOM") {
+      setNewTarif(calculateTotalTarif(newKategori, newIuranAktif, iuranConfigList));
+    }
+  }, [newIuranAktif]);
+
+  // Sync editIuranAktif & editTarif ketika kategori/mode/iuranConfig berubah
+  useEffect(() => {
+    if (editIuranMode === "SEMUA") {
+      const allIds = iuranConfigList.map((item) => item.id);
+      setEditIuranAktif(allIds);
+      setEditTarif(calculateTotalTarif(editKategori, allIds, iuranConfigList));
+    } else {
+      setEditTarif(calculateTotalTarif(editKategori, editIuranAktif, iuranConfigList));
+    }
+  }, [editKategori, editIuranMode, iuranConfigList]);
+
+  useEffect(() => {
+    if (editIuranMode === "KUSTOM") {
+      setEditTarif(calculateTotalTarif(editKategori, editIuranAktif, iuranConfigList));
+    }
+  }, [editIuranAktif]);
 
   // Handler Scan QR Berhasil
   const handleScanSuccess = async (scannedId: string) => {
@@ -246,6 +364,14 @@ export default function App() {
   // Handler Kirim / Konfirmasi Pembayaran
   const handlePaymentSubmit = async (selectedMonths: string[], totalBayar: number, catatan: string) => {
     if (!selectedWarga) return;
+
+    // Safeguard check for already paid months
+    const alreadyPaidMonths = selectedMonths.filter((m) => selectedWarga.historyPembayaran.includes(m));
+    if (alreadyPaidMonths.length > 0) {
+      alert(`Peringatan Double Bayar: Bulan ${alreadyPaidMonths.map(formatMonthId).join(", ")} sudah lunas! Silakan alihkan ke bulan lain yang belum dibayar.`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const txMethod = activeScreen === "MANUAL" ? "MANUAL" : "QR_CODE";
@@ -287,11 +413,25 @@ export default function App() {
 
     setIsSubmitting(true);
     try {
-      await DbService.addWarga(newNama, newKk, newNoRumah, newKategori, newTarif);
+      await DbService.addWarga(
+        newNama,
+        newKk,
+        newNoRumah,
+        newKategori,
+        newTarif,
+        newIuranAktif,
+        newNomorHp,
+        newNamaKolektor
+      );
       // Reset form
       setNewNama("");
       setNewKk("");
       setNewNoRumah("");
+      setNewNomorHp("");
+      setNewKategori("Warga Biasa");
+      setNewNamaKolektor("Is Tentrem");
+      setNewIuranMode("SEMUA");
+      setNewIuranAktif(iuranConfigList.map((i) => i.id));
       // Refresh list
       await loadData();
       setActiveScreen("MANAGE");
@@ -309,8 +449,21 @@ export default function App() {
     setEditNama(warga.namaKepalaKeluarga);
     setEditKk(warga.nomorKk);
     setEditNoRumah(warga.nomorRumah);
-    setEditKategori(warga.kategoriIuran);
-    setEditTarif(warga.tarifPerBulan);
+    setEditNomorHp(warga.nomorHp || "");
+    setEditKategori(warga.kategoriIuran || "Warga Biasa");
+    setEditNamaKolektor(warga.namaKolektor || "Is Tentrem");
+
+    const allIds = iuranConfigList.map((i) => i.id);
+    const currentAktif = warga.iuranAktif && warga.iuranAktif.length > 0 ? warga.iuranAktif : allIds;
+    setEditIuranAktif(currentAktif);
+
+    if (currentAktif.length === allIds.length && allIds.every((id) => currentAktif.includes(id))) {
+      setEditIuranMode("SEMUA");
+    } else {
+      setEditIuranMode("KUSTOM");
+    }
+
+    setEditTarif(warga.tarifPerBulan || calculateTotalTarif(warga.kategoriIuran || "Warga Biasa", currentAktif, iuranConfigList));
     setActiveScreen("EDIT_WARGA");
   };
 
@@ -337,12 +490,16 @@ export default function App() {
         editKk,
         editNoRumah,
         editKategori,
-        editTarif
+        editTarif,
+        editIuranAktif,
+        editNomorHp,
+        editNamaKolektor
       );
       // Reset form
       setEditNama("");
       setEditKk("");
       setEditNoRumah("");
+      setEditNomorHp("");
       setEditingWarga(null);
       // Refresh list
       await loadData();
@@ -358,7 +515,7 @@ export default function App() {
   // Handler Download PDF Kartu QR
   const handleDownloadPDF = async () => {
     if (!activeCardWarga) return;
-    const element = document.getElementById("printable-warga-card");
+    const element = document.getElementById("only-qr-and-name-print");
     if (!element) return;
 
     setIsDownloadingPdf(true);
@@ -419,14 +576,14 @@ export default function App() {
 
       const imgData = canvas.toDataURL("image/png");
 
-      // Ukuran Standar ID Card / Credit Card Fisik (85.6mm x 54mm)
+      // Ukuran Square Cetak Minimalis (80mm x 80mm)
       const pdf = new jsPDF({
-        orientation: "landscape",
+        orientation: "portrait",
         unit: "mm",
-        format: [85.6, 54],
+        format: [80, 80],
       });
 
-      pdf.addImage(imgData, "PNG", 0, 0, 85.6, 54);
+      pdf.addImage(imgData, "PNG", 0, 0, 80, 80);
       
       // Simpan dengan format QR_Nama Warga.pdf
       const safeName = activeCardWarga.namaKepalaKeluarga.trim().replace(/\s+/g, "_");
@@ -446,7 +603,7 @@ export default function App() {
   // Handler Download Gambar PNG Kartu QR
   const handleDownloadPNG = async () => {
     if (!activeCardWarga) return;
-    const element = document.getElementById("printable-warga-card");
+    const element = document.getElementById("only-qr-and-name-print");
     if (!element) return;
 
     setIsDownloadingPdf(true); // Share loading state
@@ -557,6 +714,347 @@ export default function App() {
     }).format(value);
   };
 
+  const formatWithDots = (value: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Handler Ganti Password
+  const handleChangePassword = () => {
+    setSettingsMessage(null);
+    if (!settingsOldPassword || !settingsNewPassword || !settingsConfirmPassword) {
+      setSettingsMessage({ text: "Harap isi semua kolom sandi!", isError: true });
+      return;
+    }
+
+    if (settingsNewPassword.length < 4) {
+      setSettingsMessage({ text: "Sandi baru minimal 4 karakter!", isError: true });
+      return;
+    }
+
+    if (settingsNewPassword !== settingsConfirmPassword) {
+      setSettingsMessage({ text: "Konfirmasi sandi baru tidak cocok!", isError: true });
+      return;
+    }
+
+    const savedPasswordKey = settingsRoleToChange === "admin" ? "admin_password" : "kolektor_password";
+    const currentPass = localStorage.getItem(savedPasswordKey) || "123456";
+
+    if (settingsOldPassword !== currentPass) {
+      setSettingsMessage({ text: "Sandi lama Anda salah!", isError: true });
+      return;
+    }
+
+    localStorage.setItem(savedPasswordKey, settingsNewPassword);
+    setSettingsMessage({ text: `Sandi ${settingsRoleToChange === "admin" ? "Administrator" : "Kolektor"} berhasil diperbarui!`, isError: false });
+    
+    // Clear fields
+    setSettingsOldPassword("");
+    setSettingsNewPassword("");
+    setSettingsConfirmPassword("");
+  };
+
+  // Handler Export Excel
+  const handleExportToExcel = () => {
+    // Create citizen data rows
+    const wargaRows = wargaList.map((w, index) => ({
+      "No": index + 1,
+      "ID Warga": w.id,
+      "Nama Kepala Keluarga": w.namaKepalaKeluarga,
+      "Nomor KK": w.nomorKk,
+      "Nomor Rumah": w.nomorRumah,
+      "Nomor WA / HP": w.nomorHp || "",
+      "Kategori Iuran": w.kategoriIuran,
+      "Tarif Bulanan (Rp)": w.tarifPerBulan,
+      "Riwayat Bayar": w.historyPembayaran.join(", ")
+    }));
+
+    // Create transactions rows
+    const txRows = transactions.map((t, index) => ({
+      "No": index + 1,
+      "ID Transaksi": t.id,
+      "ID Warga": t.wargaId,
+      "Nama Warga": t.wargaNama,
+      "Nomor Rumah": t.wargaNomorRumah,
+      "Bulan Dibayar": t.bulanBayar.join(", "),
+      "Tarif Dasar (Rp)": t.tarifDasar,
+      "Total Bayar (Rp)": t.totalBayar,
+      "Tanggal": new Date(t.tanggal).toLocaleString("id-ID"),
+      "Metode": t.metode,
+      "Status": t.status,
+      "Catatan": t.catatan || ""
+    }));
+
+    const wb = XLSX.utils.book_new();
+    
+    const wsWarga = XLSX.utils.json_to_sheet(wargaRows);
+    XLSX.utils.book_append_sheet(wb, wsWarga, "Daftar_Warga");
+    
+    const wsTx = XLSX.utils.json_to_sheet(txRows);
+    XLSX.utils.book_append_sheet(wb, wsTx, "Riwayat_Iuran");
+    
+    XLSX.writeFile(wb, "Laporan_Iuran_RT05_RW02.xlsx");
+  };
+
+  // Handler Import Excel
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        if (!bstr) return;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        
+        // Look for a sheet (first sheet or sheet named "Daftar_Warga")
+        const sheetName = wb.SheetNames.find(name => name.toLowerCase().includes("warga")) || wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rawData = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (rawData.length === 0) {
+          setImportError("File Excel kosong atau format tidak sesuai!");
+          return;
+        }
+
+        // Map rows
+        const parsed: Warga[] = [];
+        rawData.forEach((row: any, index: number) => {
+          let nama = "";
+          let kk = "";
+          let noRumah = "";
+          let noHp = "";
+          let kategori: KategoriIuran = "Warga Biasa";
+          let tarif = 35000;
+          let history: string[] = [];
+
+          for (const key of Object.keys(row)) {
+            const lowerKey = key.toLowerCase();
+            const val = String(row[key]).trim();
+
+            if (lowerKey.includes("nama")) {
+              nama = val;
+            } else if (lowerKey.includes("kk") || lowerKey.includes("keluarga")) {
+              kk = val;
+            } else if (lowerKey.includes("rumah")) {
+              noRumah = val;
+            } else if (lowerKey.includes("hp") || lowerKey.includes("wa") || lowerKey.includes("telp") || lowerKey.includes("phone")) {
+              noHp = val;
+            } else if (lowerKey.includes("kategori")) {
+              if (val.toLowerCase().includes("luar")) kategori = "Warga Luar";
+              else if (val.toLowerCase().includes("usaha")) kategori = "Warga Usaha";
+              else kategori = "Warga Biasa";
+            } else if (lowerKey.includes("tarif") || lowerKey.includes("iuran")) {
+              const num = parseInt(val.replace(/[^\d]/g, ""));
+              if (!isNaN(num)) tarif = num;
+            } else if (lowerKey.includes("history") || lowerKey.includes("riwayat") || lowerKey.includes("bulan")) {
+              if (val) {
+                history = val.split(",").map(m => m.trim()).filter(m => m.match(/^\d{4}-\d{2}$/));
+              }
+            }
+          }
+
+          // Set default tarif if not provided
+          if (!row.hasOwnProperty("Tarif") && !row.hasOwnProperty("tarif")) {
+            tarif = calculateTotalTarif(kategori, undefined, iuranConfigList);
+          }
+
+          if (nama && kk) {
+            parsed.push({
+              id: row["ID Warga"] || row["id"] || `W-TEMP-${index}`,
+              qrId: kk,
+              nomorKk: kk,
+              namaKepalaKeluarga: nama,
+              nomorRumah: noRumah || "-",
+              nomorHp: noHp || "",
+              kategoriIuran: kategori,
+              tarifPerBulan: tarif,
+              historyPembayaran: history
+            });
+          }
+        });
+
+        if (parsed.length === 0) {
+          setImportError("Tidak dapat memetakan data. Pastikan file Excel memiliki kolom nama dan nomor KK.");
+        } else {
+          setImportParsedWarga(parsed);
+          setImportError(null);
+        }
+      } catch (err: any) {
+        setImportError(`Gagal membaca Excel: ${err.message}`);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSaveImportedData = async () => {
+    setIsSubmitting(true);
+    try {
+      let addCount = 0;
+      let updateCount = 0;
+
+      for (const warga of importParsedWarga) {
+        const existing = wargaList.find(w => w.nomorKk === warga.nomorKk);
+        
+        if (existing) {
+          const docRef = doc(db, "warga", existing.id);
+          const mergedHistory = Array.from(new Set([...existing.historyPembayaran, ...warga.historyPembayaran])).sort();
+          
+          await setDoc(docRef, {
+            ...existing,
+            namaKepalaKeluarga: warga.namaKepalaKeluarga,
+            nomorRumah: warga.nomorRumah,
+            nomorHp: warga.nomorHp || existing.nomorHp || "",
+            kategoriIuran: warga.kategoriIuran,
+            tarifPerBulan: warga.tarifPerBulan,
+            historyPembayaran: mergedHistory
+          });
+          updateCount++;
+        } else {
+          const currentList = await DbService.getWargaList();
+          const num = currentList.length > 0 ? Math.max(...currentList.map((w) => parseInt(w.id.replace("W-", "")) || 0)) + 1 : 1;
+          const newId = `W-${String(num).padStart(2, "0")}`;
+
+          const docRef = doc(db, "warga", newId);
+          await setDoc(docRef, {
+            id: newId,
+            qrId: warga.nomorKk,
+            nomorKk: warga.nomorKk,
+            namaKepalaKeluarga: warga.namaKepalaKeluarga,
+            nomorRumah: warga.nomorRumah,
+            nomorHp: warga.nomorHp || "",
+            kategoriIuran: warga.kategoriIuran,
+            tarifPerBulan: warga.tarifPerBulan,
+            historyPembayaran: warga.historyPembayaran
+          });
+          addCount++;
+        }
+      }
+
+      await loadData();
+      setImportSuccessCount(addCount + updateCount);
+      setImportParsedWarga([]);
+    } catch (err: any) {
+      setImportError(`Gagal menyimpan data ke database: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePrintReport = (monthId: string) => {
+    const monthName = LIST_BULAN_2026.find(m => m.id === monthId)?.namaBulan || monthId;
+    
+    const lunasWarga = wargaList.filter(w => w.historyPembayaran.includes(monthId));
+    const belumLunasWarga = wargaList.filter(w => !w.historyPembayaran.includes(monthId));
+    const totalTerkumpul = lunasWarga.reduce((sum, w) => sum + w.tarifPerBulan, 0);
+    const totalTunggakan = belumLunasWarga.reduce((sum, w) => sum + w.tarifPerBulan, 0);
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    let lunasRowsHtml = "";
+    lunasWarga.forEach(w => {
+      lunasRowsHtml += "<tr>" +
+        "<td class='py-2 font-semibold text-slate-800'>" + w.namaKepalaKeluarga + "</td>" +
+        "<td class='py-2 text-slate-500'>" + w.nomorRumah + "</td>" +
+        "<td class='py-2 text-right font-mono text-slate-750'>Rp " + formatWithDots(w.tarifPerBulan) + "</td>" +
+        "<td class='py-2 text-right font-black text-emerald-600'>LUNAS</td>" +
+        "</tr>";
+    });
+
+    let belumLunasHtml = "";
+    if (belumLunasWarga.length === 0) {
+      belumLunasHtml = "<p class='text-xs text-slate-400 italic py-2'>Semua warga telah melunasi iuran bulan ini.</p>";
+    } else {
+      let rows = "";
+      belumLunasWarga.forEach(w => {
+        rows += "<tr>" +
+          "<td class='py-2 font-semibold text-slate-800'>" + w.namaKepalaKeluarga + "</td>" +
+          "<td class='py-2 text-slate-500'>" + w.nomorRumah + "</td>" +
+          "<td class='py-2 text-right font-mono text-slate-750 font-semibold'>Rp " + formatWithDots(w.tarifPerBulan) + "</td>" +
+          "<td class='py-2 text-right font-black text-amber-600'>BELUM LUNAS</td>" +
+          "</tr>";
+      });
+      belumLunasHtml = "<table class='w-full text-xs text-left'>" +
+        "<thead>" +
+        "<tr class='text-slate-400 uppercase font-bold border-b text-[10px]'>" +
+        "<th class='py-1'>Nama</th>" +
+        "<th class='py-1'>No. Rumah</th>" +
+        "<th class='py-1 text-right'>Tarif</th>" +
+        "<th class='py-1 text-right'>Status</th>" +
+        "</tr>" +
+        "</thead>" +
+        "<tbody class='divide-y'>" + rows + "</tbody>" +
+        "</table>";
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Laporan Bulanan RT 05 - ${monthName}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body class="bg-white p-8 font-sans">
+          <div class="max-w-3xl mx-auto border border-slate-200 p-8 rounded-2xl shadow-sm">
+            <div class="text-center border-b pb-4 mb-6">
+              <h1 class="text-2xl font-black text-slate-900 tracking-wide">LAPORAN PENERIMAAN IURAN RT 05 RW 02</h1>
+              <p class="text-xs text-slate-500 font-semibold mt-1">Sistem Keuangan Mandiri - Periode: ${monthName}</p>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 mb-6">
+              <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total Terkumpul</span>
+                <span class="text-lg font-black text-blue-600 mt-1 block">Rp ${formatWithDots(totalTerkumpul)}</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Tunggakan</span>
+                <span class="text-lg font-black text-amber-600 mt-1 block">Rp ${formatWithDots(totalTunggakan)}</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Status Bayar</span>
+                <span class="text-lg font-black text-emerald-600 mt-1 block">${lunasWarga.length} / ${wargaList.length} Warga</span>
+              </div>
+            </div>
+
+            <div class="mb-6">
+              <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2 pb-1 border-b">Daftar Warga Lunas (${lunasWarga.length})</h3>
+              <table class="w-full text-xs text-left">
+                <thead>
+                  <tr class="text-slate-400 uppercase font-bold border-b text-[10px]">
+                    <th class="py-1">Nama</th>
+                    <th class="py-1">No. Rumah</th>
+                    <th class="py-1 text-right">Tarif</th>
+                    <th class="py-1 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y">
+                  ${lunasRowsHtml}
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider mb-2 pb-1 border-b">Daftar Warga Belum Lunas (${belumLunasWarga.length})</h3>
+              ${belumLunasHtml}
+            </div>
+
+            <div class="no-print mt-8 flex justify-center">
+              <button onclick="window.print()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md">Cetak Laporan</button>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   if (showSplash) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
@@ -632,7 +1130,13 @@ export default function App() {
       const userLower = loginUsername.trim().toLowerCase();
       const passTrim = loginPassword.trim();
       
-      if ((userLower === "admin" || userLower === "kolektor") && passTrim === "123456") {
+      const adminPass = localStorage.getItem("admin_password") || "123456";
+      const kolektorPass = localStorage.getItem("kolektor_password") || "123456";
+      
+      if (
+        (userLower === "admin" && passTrim === adminPass) ||
+        ((userLower === "kolektor" || userLower === "kolektor_sesi") && passTrim === kolektorPass)
+      ) {
         const loggedInUser = {
           username: userLower,
           role: userLower === "admin" ? "Administrator" : "Kolektor Sesi"
@@ -779,7 +1283,7 @@ export default function App() {
         id="android-phone-frame"
       >
         {/* Sticky Header Wrapper */}
-        <div className="shrink-0 flex flex-col w-full bg-white z-10 border-b border-slate-100">
+        <div className="shrink-0 flex flex-col w-full bg-white z-40 border-b border-slate-100 relative">
           {/* Android Status Bar */}
           <div className="hidden sm:flex bg-slate-50 text-slate-700/80 px-6 py-2 justify-between items-center text-[10px] font-bold tracking-widest select-none shrink-0 border-b border-slate-100/60">
             <span>09:41</span>
@@ -823,17 +1327,86 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <button className="p-2 hover:bg-slate-50 active:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full transition-all cursor-pointer" title="Menu Tambahan">
+                <div className="flex items-center gap-1.5 relative">
+                  <button
+                    onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                    className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer"
+                    title="Menu Tambahan"
+                  >
                     <MoreVertical className="w-5 h-5" />
                   </button>
+                  
+                  {isHeaderMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-45" onClick={() => setIsHeaderMenuOpen(false)} />
+                      <div className="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-left overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setShowMatrixModal(true);
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <BarChart3 className="w-4 h-4 text-blue-500 shrink-0" /> Laporan Bulanan
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setShowPendapatanModal(true);
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" /> Laporan Pendapatan
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setActiveModal("EXPORT");
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" /> Export Excel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setActiveModal("IMPORT");
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <Upload className="w-4 h-4 text-indigo-500 shrink-0" /> Import Excel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setActiveModal("PENGATURAN");
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
+                        </button>
+                        {deferredPrompt && (
+                          <button
+                            onClick={() => {
+                               setIsHeaderMenuOpen(false);
+                               handleInstallPWA();
+                            }}
+                            className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
+                          >
+                            <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> Instal Aplikasi
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  
                   <button
                     onClick={() => {
                       setCurrentUser(null);
                       localStorage.removeItem("kolektor_logged_in_user");
                       setActiveScreen("DASHBOARD");
                     }}
-                    className="p-2 hover:bg-rose-50 active:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    className="p-2 hover:bg-rose-50 active:bg-rose-100 text-rose-500 hover:text-rose-700 rounded-full transition-all cursor-pointer flex items-center justify-center"
                     title="Keluar"
                   >
                     <LogOut className="w-5 h-5" />
@@ -889,17 +1462,86 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <button className="p-2 hover:bg-slate-50 active:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full transition-all cursor-pointer" title="Menu Tambahan">
+              <div className="flex items-center gap-1.5 relative">
+                <button
+                  onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                  className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer"
+                  title="Menu Tambahan"
+                >
                   <MoreVertical className="w-5 h-5" />
                 </button>
+                
+                {isHeaderMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-45" onClick={() => setIsHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-left overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setShowMatrixModal(true);
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <BarChart3 className="w-4 h-4 text-blue-500 shrink-0" /> Laporan Bulanan
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setShowPendapatanModal(true);
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" /> Laporan Pendapatan
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setActiveModal("EXPORT");
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" /> Export Excel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setActiveModal("IMPORT");
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <Upload className="w-4 h-4 text-indigo-500 shrink-0" /> Import Excel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setActiveModal("PENGATURAN");
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
+                      </button>
+                      {deferredPrompt && (
+                        <button
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            handleInstallPWA();
+                          }}
+                          className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
+                        >
+                          <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> Instal Aplikasi
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+                
                 <button
                   onClick={() => {
                     setCurrentUser(null);
                     localStorage.removeItem("kolektor_logged_in_user");
                     setActiveScreen("DASHBOARD");
                   }}
-                  className="p-2 hover:bg-rose-50 active:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                  className="p-2 hover:bg-rose-50 active:bg-rose-100 text-rose-500 hover:text-rose-700 rounded-full transition-all cursor-pointer flex items-center justify-center"
                   title="Keluar"
                 >
                   <LogOut className="w-5 h-5" />
@@ -911,6 +1553,37 @@ export default function App() {
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* PWA Install Banner */}
+          {deferredPrompt && showInstallBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 shrink-0 flex items-center justify-between shadow-sm relative z-20 border-b border-blue-700/30"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">📱</span>
+                <div className="text-left">
+                  <h4 className="text-[11px] font-black uppercase tracking-wider leading-none">Instal Aplikasi RT</h4>
+                  <p className="text-[9.5px] font-medium text-blue-100 mt-1">Simpan di Home Screen biar mirip App asli!</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleInstallPWA}
+                  className="px-3 py-1.5 bg-white text-blue-700 font-extrabold text-[10px] rounded-lg transition-all active:scale-95 shadow-sm cursor-pointer"
+                >
+                  INSTAL
+                </button>
+                <button
+                  onClick={() => setShowInstallBanner(false)}
+                  className="p-1 hover:bg-white/10 rounded text-white/80 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* RINGKASAN DATA HARI INI - Selalu terpampang di halaman penjelajahan utama */}
           {(activeScreen === "DASHBOARD" || activeScreen === "SCAN" || activeScreen === "MANAGE") && (
             <div className="bg-white border-b border-slate-100/40 py-2.5 px-4 grid grid-cols-2 gap-2.5 shadow-none shrink-0">
@@ -1190,9 +1863,22 @@ export default function App() {
                                       <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">Kategori Iuran</span>
                                       <span className="font-bold text-slate-700">{w.kategoriIuran}</span>
                                     </div>
-                                    <div className="col-span-2">
+                                    <div>
                                       <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">Nomor KK (Digital ID)</span>
                                       <span className="font-bold text-slate-700 font-mono tracking-wider">{w.nomorKk}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">No. WhatsApp / HP</span>
+                                      <span className="font-bold text-slate-700 font-mono flex items-center gap-1">
+                                        {w.nomorHp ? (
+                                          <>
+                                            <Phone className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                            <span>{w.nomorHp}</span>
+                                          </>
+                                        ) : (
+                                          <span className="text-slate-400 italic font-sans font-normal text-[9px]">Belum diisi</span>
+                                        )}
+                                      </span>
                                     </div>
                                     <div className="col-span-2">
                                       <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">Riwayat Pembayaran</span>
@@ -1351,34 +2037,151 @@ export default function App() {
 
                           <div className="flex flex-col space-y-1.5">
                             <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
-                              Kategori Iuran:
+                              No. WhatsApp / HP:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Contoh: 081234567890"
+                              value={newNomorHp}
+                              onChange={(e) => setNewNomorHp(e.target.value.replace(/[^\d+]/g, ""))}
+                              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex flex-col space-y-1.5">
+                            <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
+                              Kategori Warga:
                             </label>
                             <select
                               value={newKategori}
-                              onChange={(e) => setNewKategori(e.target.value as any)}
+                              onChange={(e) => setNewKategori(e.target.value as KategoriIuran)}
                               className="w-full px-2.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                             >
                               <option value="Warga Biasa">Warga Biasa</option>
                               <option value="Warga Usaha">Warga Usaha</option>
+                              <option value="Warga Luar">Warga Luar</option>
                             </select>
+                          </div>
+
+                          <div className="flex flex-col space-y-1.5">
+                            <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
+                              Nama Kolektor:
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Contoh: Is Tentrem"
+                              value={newNamaKolektor}
+                              onChange={(e) => setNewNamaKolektor(e.target.value)}
+                              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
+                            />
                           </div>
                         </div>
 
-                        <div className="flex flex-col space-y-1.5">
-                          <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
-                            Tarif Iuran Bulanan (Rp):
+                        {/* Pilihan Jenis Iuran Warga */}
+                        <div className="space-y-2.5 pt-1">
+                          <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                            Pilihan Jenis Iuran Warga:
                           </label>
-                          <input
-                            type="text"
-                            required
-                            value={newTarif === 0 ? "0" : formatWithDots(newTarif)}
-                            onChange={(e) => {
-                              const cleanVal = e.target.value.replace(/\D/g, "");
-                              const num = parseInt(cleanVal, 10) || 0;
-                              setNewTarif(num);
-                            }}
-                            className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
-                          />
+
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewIuranMode("SEMUA");
+                                setNewIuranAktif(iuranConfigList.map((i) => i.id));
+                              }}
+                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                                newIuranMode === "SEMUA"
+                                  ? "bg-blue-50/70 border-blue-500 text-blue-900 shadow-3xs"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${newIuranMode === "SEMUA" ? "border-blue-600 bg-blue-600" : "border-slate-300"}`}>
+                                {newIuranMode === "SEMUA" && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-[11px]">Pilih Semua ({iuranConfigList.length} Jenis)</div>
+                                <div className="text-[9px] text-slate-400 font-medium">Standard Default</div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setNewIuranMode("KUSTOM")}
+                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                                newIuranMode === "KUSTOM"
+                                  ? "bg-blue-50/70 border-blue-500 text-blue-900 shadow-3xs"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${newIuranMode === "KUSTOM" ? "border-blue-600 bg-blue-600" : "border-slate-300"}`}>
+                                {newIuranMode === "KUSTOM" && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-[11px]">Pilih Kustom</div>
+                                <div className="text-[9px] text-slate-400 font-medium">Centang Mandiri</div>
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Checkbox List for Iuran Items */}
+                          <div className="space-y-1.5 bg-slate-50 border border-slate-200/80 p-3 rounded-xl">
+                            {iuranConfigList.map((item) => {
+                              const isChecked = newIuranAktif.includes(item.id);
+                              const itemPrice = item.isKategoriBased && item.nominalByKategori
+                                ? (item.nominalByKategori[newKategori] ?? 0)
+                                : (item.nominalDefault ?? 0);
+
+                              return (
+                                <label
+                                  key={item.id}
+                                  className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
+                                    isChecked
+                                      ? "bg-white border-blue-300/80 shadow-3xs text-slate-800"
+                                      : "bg-slate-100/60 border-transparent text-slate-400 opacity-60"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={newIuranMode === "SEMUA"}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setNewIuranAktif([...newIuranAktif, item.id]);
+                                        } else {
+                                          setNewIuranAktif(newIuranAktif.filter((id) => id !== item.id));
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <span className="text-xs font-extrabold">{item.nama}</span>
+                                  </div>
+                                  <span className="text-[11px] font-mono font-bold text-blue-700">
+                                    Rp {formatWithDots(itemPrice)} / bln
+                                  </span>
+                                </label>
+                              );
+                            })}
+
+                            {/* Ringkasan Total Tarif */}
+                            <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between bg-blue-50/60 p-2.5 rounded-lg border border-blue-100">
+                              <div>
+                                <span className="text-[10px] font-extrabold text-blue-900 uppercase tracking-tight block">
+                                  Total Iuran Harus Dibayar
+                                </span>
+                                <span className="text-[9px] font-semibold text-blue-700">
+                                  {newIuranAktif.length} dari {iuranConfigList.length} jenis iuran aktif
+                                </span>
+                              </div>
+                              <span className="text-sm font-mono font-black text-blue-800">
+                                Rp {formatWithDots(newTarif)} / bln
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1481,34 +2284,151 @@ export default function App() {
 
                           <div className="flex flex-col space-y-1.5">
                             <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
-                              Kategori Iuran:
+                              No. WhatsApp / HP:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Contoh: 081234567890"
+                              value={editNomorHp}
+                              onChange={(e) => setEditNomorHp(e.target.value.replace(/[^\d+]/g, ""))}
+                              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex flex-col space-y-1.5">
+                            <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
+                              Kategori Warga:
                             </label>
                             <select
                               value={editKategori}
-                              onChange={(e) => setEditKategori(e.target.value as any)}
+                              onChange={(e) => setEditKategori(e.target.value as KategoriIuran)}
                               className="w-full px-2.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
                             >
                               <option value="Warga Biasa">Warga Biasa</option>
                               <option value="Warga Usaha">Warga Usaha</option>
+                              <option value="Warga Luar">Warga Luar</option>
                             </select>
+                          </div>
+
+                          <div className="flex flex-col space-y-1.5">
+                            <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
+                              Nama Kolektor:
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Contoh: Is Tentrem"
+                              value={editNamaKolektor}
+                              onChange={(e) => setEditNamaKolektor(e.target.value)}
+                              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
+                            />
                           </div>
                         </div>
 
-                        <div className="flex flex-col space-y-1.5">
-                          <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
-                            Tarif Iuran Bulanan (Rp):
+                        {/* Pilihan Jenis Iuran Warga */}
+                        <div className="space-y-2.5 pt-1">
+                          <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                            Pilihan Jenis Iuran Warga:
                           </label>
-                          <input
-                            type="text"
-                            required
-                            value={editTarif === 0 ? "0" : formatWithDots(editTarif)}
-                            onChange={(e) => {
-                              const cleanVal = e.target.value.replace(/\D/g, "");
-                              const num = parseInt(cleanVal, 10) || 0;
-                              setEditTarif(num);
-                            }}
-                            className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white h-12"
-                          />
+
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditIuranMode("SEMUA");
+                                setEditIuranAktif(iuranConfigList.map((i) => i.id));
+                              }}
+                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                                editIuranMode === "SEMUA"
+                                  ? "bg-blue-50/70 border-blue-500 text-blue-900 shadow-3xs"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${editIuranMode === "SEMUA" ? "border-blue-600 bg-blue-600" : "border-slate-300"}`}>
+                                {editIuranMode === "SEMUA" && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-[11px]">Pilih Semua ({iuranConfigList.length} Jenis)</div>
+                                <div className="text-[9px] text-slate-400 font-medium">Standard Default</div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditIuranMode("KUSTOM")}
+                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                                editIuranMode === "KUSTOM"
+                                  ? "bg-blue-50/70 border-blue-500 text-blue-900 shadow-3xs"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${editIuranMode === "KUSTOM" ? "border-blue-600 bg-blue-600" : "border-slate-300"}`}>
+                                {editIuranMode === "KUSTOM" && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-[11px]">Pilih Kustom</div>
+                                <div className="text-[9px] text-slate-400 font-medium">Centang Mandiri</div>
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Checkbox List for Iuran Items */}
+                          <div className="space-y-1.5 bg-slate-50 border border-slate-200/80 p-3 rounded-xl">
+                            {iuranConfigList.map((item) => {
+                              const isChecked = editIuranAktif.includes(item.id);
+                              const itemPrice = item.isKategoriBased && item.nominalByKategori
+                                ? (item.nominalByKategori[editKategori] ?? 0)
+                                : (item.nominalDefault ?? 0);
+
+                              return (
+                                <label
+                                  key={item.id}
+                                  className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
+                                    isChecked
+                                      ? "bg-white border-blue-300/80 shadow-3xs text-slate-800"
+                                      : "bg-slate-100/60 border-transparent text-slate-400 opacity-60"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={editIuranMode === "SEMUA"}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEditIuranAktif([...editIuranAktif, item.id]);
+                                        } else {
+                                          setEditIuranAktif(editIuranAktif.filter((id) => id !== item.id));
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <span className="text-xs font-extrabold">{item.nama}</span>
+                                  </div>
+                                  <span className="text-[11px] font-mono font-bold text-blue-700">
+                                    Rp {formatWithDots(itemPrice)} / bln
+                                  </span>
+                                </label>
+                              );
+                            })}
+
+                            {/* Ringkasan Total Tarif */}
+                            <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between bg-blue-50/60 p-2.5 rounded-lg border border-blue-100">
+                              <div>
+                                <span className="text-[10px] font-extrabold text-blue-900 uppercase tracking-tight block">
+                                  Total Iuran Harus Dibayar
+                                </span>
+                                <span className="text-[9px] font-semibold text-blue-700">
+                                  {editIuranAktif.length} dari {iuranConfigList.length} jenis iuran aktif
+                                </span>
+                              </div>
+                              <span className="text-sm font-mono font-black text-blue-800">
+                                Rp {formatWithDots(editTarif)} / bln
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1565,7 +2485,7 @@ export default function App() {
           )}
           <div className="flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Keamanan Enkripsi Lokal • Offline PWA Ready</span>
+            <span>RT 05 RW 02 Cilangkap Tapos Depok</span>
           </div>
         </footer>
 
@@ -1599,7 +2519,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Recent Transactions Bottom Sheet Drawer */}
+        {/* Recent Transactions Full Drawer (Stops right under Header) */}
         <AnimatePresence>
           {showHistoryTray && (
             <motion.div
@@ -1607,30 +2527,33 @@ export default function App() {
               animate={{ y: "0%" }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="absolute bottom-[44px] left-0 right-0 h-[380px] bg-white border-t border-slate-200 shadow-2xl z-30 flex flex-col rounded-t-2xl overflow-hidden"
+              className="absolute top-[68px] sm:top-[96px] bottom-0 left-0 right-0 bg-white shadow-2xl z-30 flex flex-col border-t border-slate-200 overflow-hidden"
             >
-              {/* Drag handle decoration */}
-              <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto my-2.5 shrink-0" />
-
               {/* Bottom Sheet Header */}
-              <div className="px-5 pb-2.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+              <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white shadow-2xs">
                 <div>
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Riwayat Setoran Terbaru</h3>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">RT 05 RW 02 • Sesi Aktif</p>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                    Riwayat Transaksi Setoran
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                    RT 05 RW 02 • Total {transactions.length} Setoran Masuk
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowHistoryTray(false)}
-                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full transition-colors cursor-pointer"
+                  title="Tutup Riwayat"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4.5 h-4.5" />
                 </button>
               </div>
 
               {/* Scrollable List Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-2.5 bg-slate-50/50">
                 {transactions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <Clock className="w-8 h-8 text-slate-300 stroke-[1.5] mb-2" />
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <Clock className="w-10 h-10 text-slate-300 stroke-[1.5] mb-2" />
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Belum ada transaksi</p>
                     <p className="text-[9px] text-slate-400 mt-1 text-center px-6">
                       Setoran iuran warga yang berhasil dicatat akan muncul di sini.
@@ -1659,7 +2582,12 @@ export default function App() {
                       return (
                         <div
                           key={tx.id}
-                          className="bg-white border border-slate-100 rounded-xl p-3 shadow-xs hover:border-blue-100/60 transition-all flex justify-between items-center"
+                          onClick={() => {
+                            setActiveTransaction(tx);
+                            setActiveScreen("RECEIPT");
+                            setShowHistoryTray(false);
+                          }}
+                          className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-2xs hover:border-blue-300 hover:shadow-xs transition-all flex justify-between items-center cursor-pointer active:scale-[0.99]"
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5">
@@ -1688,6 +2616,726 @@ export default function App() {
                         </div>
                       );
                     })
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* OVERLAY MODAL INTERAKTIF UNTUK MENU HEADER (LAPORAN, EXPORT, IMPORT, PENGATURAN) */}
+        <AnimatePresence>
+          {activeModal !== "NONE" && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="absolute inset-0 z-50 bg-slate-50 flex flex-col overflow-hidden"
+            >
+              {/* Header Overlay Modal */}
+              <div className="shrink-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between shadow-3xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">
+                    {activeModal === "LAPORAN" && "📊"}
+                    {activeModal === "EXPORT" && "📤"}
+                    {activeModal === "IMPORT" && "📥"}
+                    {activeModal === "PENGATURAN" && "⚙️"}
+                  </span>
+                  <h3 className="text-xs font-black tracking-wider text-slate-800 uppercase font-sans">
+                    {activeModal === "LAPORAN" && "LAPORAN PENDAPATAN"}
+                    {activeModal === "EXPORT" && "EXPORT EXCEL"}
+                    {activeModal === "IMPORT" && "IMPORT EXCEL"}
+                    {activeModal === "PENGATURAN" && "PENGATURAN & STORAGE"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveModal("NONE");
+                    setSettingsMessage(null);
+                    setImportError(null);
+                    setImportParsedWarga([]);
+                    setImportSuccessCount(null);
+                  }}
+                  className="p-1.5 hover:bg-slate-100 active:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Isi Konten Overlay */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* 1. VIEW LAPORAN */}
+                {activeModal === "LAPORAN" && (
+                  <div className="space-y-4">
+                    {/* Pemilihan Periode */}
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-3.5 space-y-2.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block leading-none">
+                        Pilih Periode Iuran
+                      </label>
+                      <select
+                        value={reportFilterMonth}
+                        onChange={(e) => setReportFilterMonth(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500/15 focus:outline-none transition-all"
+                      >
+                        {LIST_BULAN_2026.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.namaBulan}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Ringkasan Data Laporan */}
+                    {(() => {
+                      const lunasList = wargaList.filter((w) => w.historyPembayaran.includes(reportFilterMonth));
+                      const belumLunasList = wargaList.filter((w) => !w.historyPembayaran.includes(reportFilterMonth));
+                      const totalTerkumpul = lunasList.reduce((sum, w) => sum + w.tarifPerBulan, 0);
+                      const totalTunggakan = belumLunasList.reduce((sum, w) => sum + w.tarifPerBulan, 0);
+
+                      const q = reportSearchQuery.toLowerCase().trim();
+                      const filteredLunas = lunasList.filter(
+                        (w) =>
+                          w.namaKepalaKeluarga.toLowerCase().includes(q) ||
+                          w.nomorRumah.toLowerCase().includes(q)
+                      );
+                      const filteredBelumLunas = belumLunasList.filter(
+                        (w) =>
+                          w.namaKepalaKeluarga.toLowerCase().includes(q) ||
+                          w.nomorRumah.toLowerCase().includes(q)
+                      );
+
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="bg-emerald-50 border border-emerald-100/50 p-3 rounded-xl">
+                              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest block">
+                                Uang Terkumpul
+                              </span>
+                              <span className="text-xs font-black text-emerald-800 font-mono block mt-0.5">
+                                {formatRupiah(totalTerkumpul)}
+                              </span>
+                              <span className="text-[9px] text-emerald-600/80 font-bold block mt-1">
+                                {lunasList.length} Warga Lunas
+                              </span>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-100/50 p-3 rounded-xl">
+                              <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest block">
+                                Belum Terbayar
+                              </span>
+                              <span className="text-xs font-black text-amber-800 font-mono block mt-0.5">
+                                {formatRupiah(totalTunggakan)}
+                              </span>
+                              <span className="text-[9px] text-amber-600/80 font-bold block mt-1">
+                                {belumLunasList.length} Warga Belum Bayar
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handlePrintReport(reportFilterMonth)}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            <Printer className="w-4 h-4" />
+                            CETAK LAPORAN (PDF)
+                          </button>
+
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <Search className="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Cari nama atau no. rumah..."
+                              value={reportSearchQuery}
+                              onChange={(e) => setReportSearchQuery(e.target.value)}
+                              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                            />
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                                Lunas ({lunasList.length})
+                              </h4>
+                              {filteredLunas.length === 0 ? (
+                                <p className="text-[10px] text-slate-400 italic bg-white p-2.5 border rounded-xl text-center">
+                                  Tidak ada warga lunas yang cocok
+                                </p>
+                              ) : (
+                                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                                  {filteredLunas.map((w) => (
+                                    <div
+                                      key={w.id}
+                                      className="bg-white border border-slate-100 p-2 rounded-lg flex items-center justify-between text-xs font-semibold"
+                                    >
+                                      <div>
+                                        <p className="text-slate-800 font-bold">{w.namaKepalaKeluarga}</p>
+                                        <p className="text-[9px] text-slate-400">Rumah {w.nomorRumah}</p>
+                                      </div>
+                                      <span className="text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        LUNAS
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                                Belum Bayar ({belumLunasList.length})
+                              </h4>
+                              {filteredBelumLunas.length === 0 ? (
+                                <p className="text-[10px] text-slate-400 italic bg-white p-2.5 border rounded-xl text-center">
+                                  Semua warga telah melunasi iuran bulan ini
+                                </p>
+                              ) : (
+                                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                                  {filteredBelumLunas.map((w) => (
+                                    <div
+                                      key={w.id}
+                                      className="bg-white border border-slate-100 p-2 rounded-lg flex items-center justify-between text-xs font-semibold"
+                                    >
+                                      <div>
+                                        <p className="text-slate-800 font-bold">{w.namaKepalaKeluarga}</p>
+                                        <p className="text-[9px] text-slate-400">Rumah {w.nomorRumah}</p>
+                                      </div>
+                                      <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                                        BELUM
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* 2. VIEW EXPORT */}
+                {activeModal === "EXPORT" && (
+                  <div className="space-y-4">
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 text-center space-y-3 shadow-2xs">
+                      <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                        <FileSpreadsheet className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-black text-slate-800">Export ke Format Excel</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                          Seluruh basis data warga dan riwayat pembayaran transaksi iuran akan diunduh ke dalam satu file Excel multi-sheet (.xlsx).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-100/50 rounded-xl p-3.5 space-y-2 border border-slate-200/40 text-[10px] text-slate-500 font-semibold leading-relaxed">
+                      <p className="font-bold text-slate-700">📋 Informasi Sheet yang Diekspor:</p>
+                      <ul className="list-disc list-inside space-y-1 pl-1">
+                        <li>Sheet <strong className="text-slate-800">Daftar_Warga</strong>: ID, Nama, No. KK, No. Rumah, Kategori, Tarif, dan Riwayat Pembayaran.</li>
+                        <li>Sheet <strong className="text-slate-800">Riwayat_Iuran</strong>: Semua histori kuitansi transaksi pembayaran terkumpul.</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={handleExportToExcel}
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                    >
+                      <Download className="w-4 h-4" />
+                      DOWNLOAD FILE EXCEL (.xlsx)
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. VIEW IMPORT */}
+                {activeModal === "IMPORT" && (
+                  <div className="space-y-4">
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 text-center space-y-3 shadow-2xs">
+                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-black text-slate-800">Unggah File Spreadsheet</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-semibold font-sans">
+                          Sistem mendeteksi kolom nama, nomor KK, nomor rumah, kategori, dan iuran bulanan secara otomatis dari file Excel (.xlsx).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-3 space-y-1.5 text-left text-[10px] text-blue-800 leading-relaxed font-semibold">
+                      <p className="font-extrabold text-blue-900 flex items-center gap-1.5">
+                        💡 Format Riwayat Pembayaran (History):
+                      </p>
+                      <p>
+                        Jika warga sudah membayar beberapa bulan sebelumnya (misal sampai Juni 2026), Anda dapat mengisi kolom <strong className="text-blue-950 font-black">History</strong> di Excel dengan format nama bulan <strong className="text-blue-950 font-black">YYYY-MM</strong> yang dipisahkan koma, seperti:
+                      </p>
+                      <p className="font-mono bg-blue-100/50 p-1.5 rounded text-blue-900 text-[9.5px] font-bold border border-blue-200">
+                        2026-01, 2026-02, 2026-03, 2026-04, 2026-05, 2026-06
+                      </p>
+                      <p>
+                        *Aplikasi mendeteksi format ini secara otomatis agar warga langsung berstatus Lunas hingga bulan Juni!
+                      </p>
+                    </div>
+
+                    {importSuccessCount === null && importParsedWarga.length === 0 && (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setImportDragOver(true); }}
+                        onDragLeave={() => setImportDragOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setImportDragOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) {
+                            const inputEl = document.getElementById("file-import-input") as HTMLInputElement;
+                            if (inputEl) {
+                              const dt = new DataTransfer();
+                              dt.items.add(file);
+                              inputEl.files = dt.files;
+                              const event = { target: inputEl } as any;
+                              handleImportExcel(event);
+                            }
+                          }
+                        }}
+                        className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+                          importDragOver ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 hover:border-indigo-400 bg-white"
+                        }`}
+                        onClick={() => document.getElementById("file-import-input")?.click()}
+                      >
+                        <input
+                          id="file-import-input"
+                          type="file"
+                          accept=".xlsx, .xls"
+                          onChange={handleImportExcel}
+                          className="hidden"
+                        />
+                        <Upload className="w-7 h-7 text-indigo-500 animate-pulse" />
+                        <p className="text-xs font-black text-slate-700">Tarik & Lepas File di Sini</p>
+                        <p className="text-[9px] text-slate-400 font-semibold">atau ketuk untuk memilih file (.xlsx)</p>
+                      </div>
+                    )}
+
+                    {importError && (
+                      <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-[10px] font-semibold flex items-start gap-1.5 animate-fadeIn">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                        <span>{importError}</span>
+                      </div>
+                    )}
+
+                    {importSuccessCount !== null && (
+                      <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 text-center space-y-3 animate-fadeIn">
+                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+                          <Check className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-black text-emerald-800">Impor Berhasil!</h4>
+                          <p className="text-[10px] text-emerald-600 font-bold leading-relaxed">
+                            Sebanyak {importSuccessCount} data warga berhasil disinkronkan dan disimpan secara aman di cloud database.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setImportSuccessCount(null);
+                            setImportParsedWarga([]);
+                          }}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                        >
+                          SELESAI
+                        </button>
+                      </div>
+                    )}
+
+                    {importParsedWarga.length > 0 && (
+                      <div className="space-y-2.5 animate-fadeIn">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                            Pratinjau Data ({importParsedWarga.length} Warga)
+                          </h4>
+                          <button
+                            onClick={() => setImportParsedWarga([])}
+                            className="text-[10px] font-bold text-rose-550 hover:underline cursor-pointer"
+                          >
+                            Batal
+                          </button>
+                        </div>
+
+                        <div className="space-y-1 max-h-48 overflow-y-auto border border-slate-200/50 rounded-xl bg-white p-1.5 divide-y">
+                          {importParsedWarga.map((w, idx) => {
+                            const isExisting = wargaList.some((ex) => ex.nomorKk === w.nomorKk);
+                            return (
+                              <div key={idx} className="py-2 px-1.5 flex items-center justify-between text-xs font-semibold">
+                                <div>
+                                  <p className="text-slate-800 font-black">{w.namaKepalaKeluarga}</p>
+                                  <p className="text-[9px] text-slate-400">No. Rumah: {w.nomorRumah} • KK: {w.nomorKk.slice(0, 4)}...</p>
+                                </div>
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                  isExisting ? "bg-blue-50 text-blue-600 border border-blue-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                }`}>
+                                  {isExisting ? "Update" : "Baru"}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={handleSaveImportedData}
+                          disabled={isSubmitting}
+                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:bg-blue-400 transition-all active:scale-[0.98]"
+                        >
+                          <Save className="w-4 h-4" />
+                          {isSubmitting ? "MENYIMPAN DATA..." : "KONFIRMASI & SIMPAN KE DATABASE"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. VIEW PENGATURAN */}
+                {activeModal === "PENGATURAN" && (
+                  <div className="space-y-4">
+                    {/* Pengaturan Jenis & Tarif Iuran (Fitur Utama Paling Atas) */}
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-3.5 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <Settings className="w-4 h-4 text-blue-600 shrink-0" />
+                          <div>
+                            <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight font-sans">
+                              Pengaturan Jenis & Tarif Iuran
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-medium">
+                              Atur nama dan besaran iuran secara dinamis
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                        {iuranConfigList.map((item, index) => (
+                          <div key={item.id} className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <input
+                                type="text"
+                                value={item.nama}
+                                onChange={(e) => {
+                                  const updated = [...iuranConfigList];
+                                  updated[index].nama = e.target.value;
+                                  setIuranConfigList(updated);
+                                }}
+                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 flex-1"
+                                placeholder="Nama Jenis Iuran"
+                              />
+                              {iuranConfigList.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = iuranConfigList.filter((_, i) => i !== index);
+                                    setIuranConfigList(updated);
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Hapus Iuran Ini"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Mode Tarif: Sama Semua vs Beda Kategori */}
+                            <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-600 bg-white/80 p-1.5 rounded-lg border border-slate-150">
+                              <span>Sifat Tarif:</span>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...iuranConfigList];
+                                    updated[index].isKategoriBased = false;
+                                    if (updated[index].nominalDefault === undefined) {
+                                      updated[index].nominalDefault = 10000;
+                                    }
+                                    setIuranConfigList(updated);
+                                  }}
+                                  className={`px-2 py-0.5 rounded text-[8.5px] font-extrabold transition-all cursor-pointer ${
+                                    !item.isKategoriBased ? "bg-blue-600 text-white shadow-3xs" : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  Flat Semua
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...iuranConfigList];
+                                    updated[index].isKategoriBased = true;
+                                    if (!updated[index].nominalByKategori) {
+                                      updated[index].nominalByKategori = {
+                                        "Warga Biasa": 15000,
+                                        "Warga Usaha": 25000,
+                                        "Warga Luar": 20000,
+                                      };
+                                    }
+                                    setIuranConfigList(updated);
+                                  }}
+                                  className={`px-2 py-0.5 rounded text-[8.5px] font-extrabold transition-all cursor-pointer ${
+                                    item.isKategoriBased ? "bg-blue-600 text-white shadow-3xs" : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  Per Kategori
+                                </button>
+                              </div>
+                            </div>
+
+                            {!item.isKategoriBased ? (
+                              <div>
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">
+                                  Besar Tarif Bulanan (Rp)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formatWithDots(item.nominalDefault ?? 0)}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value.replace(/\D/g, ""), 10) || 0;
+                                    const updated = [...iuranConfigList];
+                                    updated[index].nominalDefault = val;
+                                    setIuranConfigList(updated);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                                <div>
+                                  <label className="text-[8px] font-black text-slate-500 block mb-0.5 truncate">
+                                    Warga Biasa
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={formatWithDots(item.nominalByKategori?.["Warga Biasa"] ?? 0)}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value.replace(/\D/g, ""), 10) || 0;
+                                      const updated = [...iuranConfigList];
+                                      if (!updated[index].nominalByKategori) {
+                                        updated[index].nominalByKategori = { "Warga Biasa": 0, "Warga Usaha": 0, "Warga Luar": 0 };
+                                      }
+                                      updated[index].nominalByKategori!["Warga Biasa"] = val;
+                                      setIuranConfigList(updated);
+                                    }}
+                                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] font-black text-slate-500 block mb-0.5 truncate">
+                                    Warga Usaha
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={formatWithDots(item.nominalByKategori?.["Warga Usaha"] ?? 0)}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value.replace(/\D/g, ""), 10) || 0;
+                                      const updated = [...iuranConfigList];
+                                      if (!updated[index].nominalByKategori) {
+                                        updated[index].nominalByKategori = { "Warga Biasa": 0, "Warga Usaha": 0, "Warga Luar": 0 };
+                                      }
+                                      updated[index].nominalByKategori!["Warga Usaha"] = val;
+                                      setIuranConfigList(updated);
+                                    }}
+                                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] font-black text-slate-500 block mb-0.5 truncate">
+                                    Warga Luar
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={formatWithDots(item.nominalByKategori?.["Warga Luar"] ?? 0)}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value.replace(/\D/g, ""), 10) || 0;
+                                      const updated = [...iuranConfigList];
+                                      if (!updated[index].nominalByKategori) {
+                                        updated[index].nominalByKategori = { "Warga Biasa": 0, "Warga Usaha": 0, "Warga Luar": 0 };
+                                      }
+                                      updated[index].nominalByKategori!["Warga Luar"] = val;
+                                      setIuranConfigList(updated);
+                                    }}
+                                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newId = `iuran_${Date.now()}`;
+                            setIuranConfigList([
+                              ...iuranConfigList,
+                              {
+                                id: newId,
+                                nama: `Iuran Tambahan ${iuranConfigList.length + 1}`,
+                                isKategoriBased: false,
+                                nominalDefault: 5000,
+                              },
+                            ]);
+                          }}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] rounded-xl flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tambah Jenis Iuran Baru</span>
+                        </button>
+                      </div>
+
+                      {iuranSaveMessage && (
+                        <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-bold text-emerald-700 text-center animate-fadeIn">
+                          {iuranSaveMessage}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.setItem("kolektor_iuran_config", JSON.stringify(iuranConfigList));
+                          setIuranSaveMessage("Pengaturan jenis & tarif iuran berhasil disimpan!");
+                          setTimeout(() => setIuranSaveMessage(null), 3000);
+                        }}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-xs cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>SIMPAN PENGATURAN IURAN</span>
+                      </button>
+                    </div>
+
+                    {/* Form Ganti Password */}
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-3.5 space-y-3 shadow-2xs">
+                      <div className="flex items-center gap-2 pb-1 border-b">
+                        <Lock className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight font-sans">Ganti Kata Sandi Petugas</h4>
+                      </div>
+
+                      <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200/50 grid grid-cols-2 text-center text-[10px] font-black">
+                        <button
+                          onClick={() => { setSettingsRoleToChange("admin"); setSettingsMessage(null); }}
+                          className={`py-1 rounded-md transition-all ${settingsRoleToChange === "admin" ? "bg-white text-slate-800 shadow-3xs" : "text-slate-400 hover:text-slate-600 cursor-pointer"}`}
+                        >
+                          Administrator
+                        </button>
+                        <button
+                          onClick={() => { setSettingsRoleToChange("kolektor"); setSettingsMessage(null); }}
+                          className={`py-1 rounded-md transition-all ${settingsRoleToChange === "kolektor" ? "bg-white text-slate-800 shadow-3xs" : "text-slate-400 hover:text-slate-600 cursor-pointer"}`}
+                        >
+                          Kolektor Sesi
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                            Sandi Lama
+                          </label>
+                          <input
+                            type="password"
+                            value={settingsOldPassword}
+                            onChange={(e) => setSettingsOldPassword(e.target.value)}
+                            className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                            placeholder="Masukkan sandi saat ini"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                            Sandi Baru
+                          </label>
+                          <input
+                            type="password"
+                            value={settingsNewPassword}
+                            onChange={(e) => setSettingsNewPassword(e.target.value)}
+                            className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                            placeholder="Minimal 4 karakter"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                            Konfirmasi Sandi Baru
+                          </label>
+                          <input
+                            type="password"
+                            value={settingsConfirmPassword}
+                            onChange={(e) => setSettingsConfirmPassword(e.target.value)}
+                            className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                            placeholder="Ulangi sandi baru"
+                          />
+                        </div>
+                      </div>
+
+                      {settingsMessage && (
+                        <div className={`p-2.5 rounded-xl text-[9px] font-semibold text-center animate-fadeIn ${settingsMessage.isError ? "bg-rose-50 text-rose-700 border border-rose-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"}`}>
+                          {settingsMessage.text}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleChangePassword}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-xs cursor-pointer transition-all active:scale-[0.98]"
+                      >
+                        SIMPAN SANDI BARU
+                      </button>
+                    </div>
+
+                    {/* Info Storage */}
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-3.5 space-y-3 shadow-2xs">
+                      <div className="flex items-center gap-2 pb-1 border-b">
+                        <Database className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight font-sans">Kapasitas Penyimpanan</h4>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-slate-500">Firebase Cloud (Firestore)</span>
+                          <span className="text-slate-800 font-mono">
+                            {(wargaList.length + transactions.length)} Dokumen / 1 GB Quota
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border">
+                          <div
+                            className="h-full bg-blue-600 rounded-full"
+                            style={{ width: `${Math.min(100, Math.max(1, ((wargaList.length + transactions.length) / 50000) * 100))}%` }}
+                          />
+                        </div>
+                        <div className="text-[8.5px] text-slate-400 font-bold leading-relaxed flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />
+                          <span>Penyimpanan awan berkapasitas besar. Sisa kuota harian: 100%.</span>
+                        </div>
+                      </div>
+
+                      {(() => {
+                        const localLengthBytes = JSON.stringify(localStorage).length;
+                        const localLengthKB = localLengthBytes / 1024;
+                        const percentUsed = (localLengthKB / 5120) * 100;
+
+                        return (
+                          <div className="space-y-1.5 pt-2 border-t border-dashed">
+                            <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-500">Penyimpanan Browser Lokal</span>
+                              <span className="text-slate-800 font-mono">
+                                {localLengthKB.toFixed(2)} KB / 5.00 MB
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border">
+                              <div
+                                className="h-full bg-indigo-600 rounded-full"
+                                style={{ width: `${Math.min(100, Math.max(1, percentUsed))}%` }}
+                              />
+                            </div>
+                            <div className="text-[8.5px] text-slate-400 font-bold leading-relaxed flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shrink-0" />
+                              <span>Digunakan sebagai cadangan cache aman saat offline.</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -1851,11 +3499,79 @@ export default function App() {
               </div>
             </div>
 
+            {/* Hidden Printable Area for QR & Name Only */}
+            <div
+              id="only-qr-and-name-print"
+              style={{
+                position: "absolute",
+                left: "-9999px",
+                top: "-9999px",
+                backgroundColor: "#ffffff",
+                width: "400px",
+                height: "400px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "24px",
+                boxSizing: "border-box",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                textAlign: "center"
+              }}
+            >
+              <div
+                style={{
+                  width: "260px",
+                  height: "260px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "16px",
+                  backgroundColor: "#ffffff"
+                }}
+              >
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
+                    JSON.stringify({
+                      nama: activeCardWarga.namaKepalaKeluarga,
+                      kk: activeCardWarga.nomorKk
+                    })
+                  )}`}
+                  alt="Kartu QR Warga"
+                  style={{ width: "260px", height: "260px", objectFit: "contain", imageRendering: "pixelated", display: "block" }}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  color: "#000000",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  lineHeight: "1.2"
+                }}
+              >
+                {activeCardWarga.namaKepalaKeluarga}
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#4b5563",
+                  marginTop: "6px",
+                  fontWeight: "600"
+                }}
+              >
+                No. Rumah: {activeCardWarga.nomorRumah} • RT 05 RW 02
+              </div>
+            </div>
+
             {/* Instruction and Action */}
             <div className="w-full mt-4 pt-4 border-t border-slate-100 space-y-3">
               <p className="text-[10px] text-slate-400 flex items-center gap-1 text-center justify-center">
                 <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                Format kartu standar ID Card (85.6mm x 54mm) resolusi tinggi.
+                Layar menampilkan kartu iuran, namun hasil cetak/unduh hanya berupa QR Code & nama warga.
               </p>
 
               <div className="grid grid-cols-2 gap-2 w-full">
@@ -1879,34 +3595,38 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => {
-                    const printContent = document.getElementById("printable-warga-card")?.outerHTML;
-                    if (printContent) {
-                      const printWindow = window.open("", "_blank");
-                      printWindow?.document.write(`
-                        <html>
-                          <head>
-                            <title>Cetak Kartu - ${activeCardWarga.namaKepalaKeluarga}</title>
-                            <script src="https://cdn.tailwindcss.com"></script>
-                            <style>
-                              body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f1f5f9; }
-                              @media print {
-                                body { background-color: white; }
-                                .no-print { display: none; }
-                              }
-                            </style>
-                          </head>
-                          <body>
-                            <div class="p-8">
-                              ${printContent}
-                              <div class="no-print mt-6 text-center">
-                                <button onclick="window.print()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs">Print / Cetak</button>
-                              </div>
+                    const qrImg = document.querySelector("#only-qr-and-name-print img") as HTMLImageElement;
+                    const qrSrc = qrImg ? qrImg.src : "";
+                    const printWindow = window.open("", "_blank");
+                    printWindow?.document.write(`
+                      <html>
+                        <head>
+                          <title>Cetak QR - ${activeCardWarga.namaKepalaKeluarga}</title>
+                          <script src="https://cdn.tailwindcss.com"></script>
+                          <style>
+                            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: white; margin: 0; }
+                            @media print {
+                              body { background-color: white; }
+                              .no-print { display: none; }
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-3xl shadow-md text-center max-w-[300px]">
+                            <div class="w-[200px] h-[200px] mb-4 flex items-center justify-center">
+                              <img src="${qrSrc}" alt="QR" class="w-full h-full object-contain" />
                             </div>
-                          </body>
-                        </html>
-                      `);
-                      printWindow?.document.close();
-                    }
+                            <h2 class="text-lg font-black text-slate-900 uppercase tracking-wide">${activeCardWarga.namaKepalaKeluarga}</h2>
+                            <p class="text-xs text-slate-500 mt-1 font-semibold">No. Rumah: ${activeCardWarga.nomorRumah} • RT 05 RW 02</p>
+                            
+                            <div class="no-print mt-6 flex justify-center">
+                              <button onclick="window.print()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md">Print / Cetak</button>
+                            </div>
+                          </div>
+                        </body>
+                      </html>
+                    `);
+                    printWindow?.document.close();
                   }}
                   className="py-2.5 px-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
                 >
@@ -1925,6 +3645,22 @@ export default function App() {
         </div>
       )}
       {/* FLOATING ACTION BUTTON UNTUK KEMBALI KE BERANDA (DIHAPUS & DIPINDAHKAN KE FOOTER SESUAI KEINGINAN USER) */}
+      {/* Modal Pra-tinjau Matrix Laporan Bulanan */}
+      {showMatrixModal && (
+        <LaporanMatrixModal
+          wargaList={wargaList}
+          onClose={() => setShowMatrixModal(false)}
+        />
+      )}
+
+      {/* Modal Laporan Pendapatan (Matrix Iuran & Ringkasan Kas) */}
+      {showPendapatanModal && (
+        <LaporanPendapatanModal
+          wargaList={wargaList}
+          transactions={transactions}
+          onClose={() => setShowPendapatanModal(false)}
+        />
+      )}
     </div>
   );
 }

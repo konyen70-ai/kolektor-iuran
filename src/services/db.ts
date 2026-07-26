@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Warga, Transaksi } from "../types";
+import { Warga, Transaksi, KategoriIuran } from "../types";
 import { DUMMY_WARGA } from "../data/dummy";
 import { db } from "./firebase";
 import { getAuth } from "firebase/auth";
@@ -71,6 +71,7 @@ export class DbService {
   /**
    * Mengambil semua daftar warga.
    * Jika database Firestore masih kosong, akan diisi dengan DUMMY_WARGA (Seeding).
+   * Juga melakukan pembersihan transaksi awal & penyetelan kolektor tunggal "Is Tentrem".
    */
   static async getWargaList(): Promise<Warga[]> {
     const path = "warga";
@@ -78,24 +79,61 @@ export class DbService {
       const colRef = collection(db, path);
       const snapshot = await getDocs(colRef);
       
-      const isSeeded = localStorage.getItem("firebase_seeded_v4") === "true";
+      const isSeeded = localStorage.getItem("firebase_seeded_v5") === "true";
       if (snapshot.empty && !isSeeded) {
         const batch = writeBatch(db);
         DUMMY_WARGA.forEach((w) => {
           batch.set(doc(db, path, w.id), w);
         });
         await batch.commit();
-        localStorage.setItem("firebase_seeded_v4", "true");
+        localStorage.setItem("firebase_seeded_v5", "true");
+        localStorage.setItem("tx_collector_cleaned_v1", "true");
         return DUMMY_WARGA.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
+      }
+
+      // One-time auto cleanup to clear existing transactions and update collectors to "Is Tentrem"
+      const isCleaned = localStorage.getItem("tx_collector_cleaned_v1") === "true";
+      if (!isCleaned) {
+        try {
+          // Hapus seluruh transaksi
+          const txSnap = await getDocs(collection(db, "transactions"));
+          if (!txSnap.empty) {
+            const txBatch = writeBatch(db);
+            txSnap.forEach((d) => txBatch.delete(d.ref));
+            await txBatch.commit();
+          }
+
+          // Reset historyPembayaran ke [] dan namaKolektor ke "Is Tentrem" untuk semua warga tanpa menghapus warga
+          if (!snapshot.empty) {
+            const wargaBatch = writeBatch(db);
+            snapshot.forEach((d) => {
+              wargaBatch.update(d.ref, {
+                historyPembayaran: [],
+                namaKolektor: "Is Tentrem",
+              });
+            });
+            await wargaBatch.commit();
+          }
+
+          localStorage.setItem("tx_collector_cleaned_v1", "true");
+          localStorage.setItem("firebase_seeded_v5", "true");
+        } catch (cleanupErr) {
+          console.warn("Auto cleanup warning:", cleanupErr);
+        }
       }
 
       const list: Warga[] = [];
       snapshot.forEach((d) => {
-        list.push(d.data() as Warga);
+        const data = d.data() as Warga;
+        if (!isCleaned) {
+          data.historyPembayaran = [];
+          data.namaKolektor = "Is Tentrem";
+        }
+        list.push(data);
       });
 
       if (list.length > 0) {
-        localStorage.setItem("firebase_seeded_v4", "true");
+        localStorage.setItem("firebase_seeded_v5", "true");
       }
 
       return list.sort((a, b) => a.namaKepalaKeluarga.localeCompare(b.namaKepalaKeluarga, "id"));
@@ -174,8 +212,11 @@ export class DbService {
     namaKepalaKeluarga: string,
     nomorKk: string,
     nomorRumah: string,
-    kategoriIuran: "Warga Biasa" | "Warga Usaha",
-    tarifPerBulan: number
+    kategoriIuran: KategoriIuran,
+    tarifPerBulan: number,
+    iuranAktif?: string[],
+    nomorHp?: string,
+    namaKolektor?: string
   ): Promise<Warga> {
     const list = await this.getWargaList();
     // Generate simple incremental ID
@@ -188,9 +229,12 @@ export class DbService {
       nomorKk: nomorKk.trim(),
       namaKepalaKeluarga: namaKepalaKeluarga.trim(),
       nomorRumah: nomorRumah.trim(),
+      nomorHp: nomorHp ? nomorHp.trim() : "",
       kategoriIuran: kategoriIuran,
+      iuranAktif: iuranAktif,
       tarifPerBulan: tarifPerBulan,
       historyPembayaran: [],
+      namaKolektor: namaKolektor ? namaKolektor.trim() : "Is Tentrem",
     };
 
     const path = `warga/${newId}`;
@@ -210,8 +254,11 @@ export class DbService {
     namaKepalaKeluarga: string,
     nomorKk: string,
     nomorRumah: string,
-    kategoriIuran: "Warga Biasa" | "Warga Usaha",
-    tarifPerBulan: number
+    kategoriIuran: KategoriIuran,
+    tarifPerBulan: number,
+    iuranAktif?: string[],
+    nomorHp?: string,
+    namaKolektor?: string
   ): Promise<Warga> {
     const path = `warga/${wargaId}`;
     try {
@@ -228,8 +275,11 @@ export class DbService {
         nomorKk: nomorKk.trim(),
         qrId: nomorKk.trim(),
         nomorRumah: nomorRumah.trim(),
+        nomorHp: nomorHp ? nomorHp.trim() : "",
         kategoriIuran: kategoriIuran,
+        iuranAktif: iuranAktif,
         tarifPerBulan: tarifPerBulan,
+        namaKolektor: namaKolektor ? namaKolektor.trim() : existingData.namaKolektor || "Is Tentrem",
       };
 
       await setDoc(docRef, updatedWarga);
@@ -318,6 +368,7 @@ export class DbService {
       wargaId: warga.id,
       wargaNama: warga.namaKepalaKeluarga,
       wargaNomorRumah: warga.nomorRumah,
+      wargaNomorHp: warga.nomorHp || "",
       bulanBayar: bulanBayar,
       tarifDasar: tarifDasar,
       totalBayar: customTotalBayar,
@@ -341,6 +392,8 @@ export class DbService {
    */
   static async resetDatabase(): Promise<void> {
     localStorage.removeItem("firebase_seeded_v4");
+    localStorage.removeItem("firebase_seeded_v5");
+    localStorage.removeItem("tx_collector_cleaned_v1");
 
     try {
       // Hapus seluruh warga

@@ -3,7 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type KategoriIuran = "Warga Biasa" | "Warga Usaha";
+export type KategoriIuran = "Warga Biasa" | "Warga Usaha" | "Warga Luar";
+
+export interface IuranItemConfig {
+  id: string;
+  nama: string;
+  isKategoriBased?: boolean; // true for items like Iuran Sampah
+  nominalDefault?: number; // for flat items
+  nominalByKategori?: {
+    "Warga Biasa": number;
+    "Warga Usaha": number;
+    "Warga Luar": number;
+  };
+}
 
 export interface Warga {
   id: string; // ID warga internal (misal: "W-01")
@@ -11,9 +23,12 @@ export interface Warga {
   nomorKk: string; // Nomor Kartu Keluarga (16 digit)
   namaKepalaKeluarga: string;
   nomorRumah: string;
+  nomorHp?: string; // Nomor WA / HP (misal: "081234567890")
   kategoriIuran: KategoriIuran;
-  tarifPerBulan: number; // Tarif berdasarkan kategori iuran
+  iuranAktif?: string[]; // List ID iuran yang aktif dibayar oleh warga ini
+  tarifPerBulan: number; // Total tarif bulanan berdasarkan iuran aktif
   historyPembayaran: string[]; // List of paid year-months, format: "YYYY-MM" (e.g. ["2026-01", "2026-02"])
+  namaKolektor?: string; // Nama Kolektor Penanggung Jawab (e.g. "Pak Ahmad RT 05")
 }
 
 export interface Transaksi {
@@ -21,6 +36,7 @@ export interface Transaksi {
   wargaId: string;
   wargaNama: string;
   wargaNomorRumah: string;
+  wargaNomorHp?: string;
   bulanBayar: string[]; // e.g. ["2026-07"]
   tarifDasar: number;
   totalBayar: number; // can be customized/modified manually if needed

@@ -16,6 +16,70 @@ interface ScannerSimProps {
   wargaList: Warga[];
 }
 
+// Play a crisp modern double-beep sound for success using Web Audio API
+const playSuccessBeep = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+
+    // Sound 1: Mid-high pitch
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(950, audioCtx.currentTime); // 950 Hz
+    gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start();
+    osc1.stop(audioCtx.currentTime + 0.08);
+
+    // Sound 2: Slightly delayed and higher pitch (gives a pleasant "ding-ding" chime)
+    setTimeout(() => {
+      try {
+        if (audioCtx.state === "closed") return;
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(1350, audioCtx.currentTime); // 1350 Hz
+        gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start();
+        osc2.stop(audioCtx.currentTime + 0.1);
+      } catch (e) {
+        // Safe catch
+      }
+    }, 70);
+  } catch (error) {
+    console.warn("Could not play scan success beep:", error);
+  }
+};
+
+// Play a low warning buzz for scan failure/error using Web Audio API
+const playErrorBeep = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "triangle"; // Buzzier texture
+    osc.frequency.setValueAtTime(160, audioCtx.currentTime); // 160 Hz low buzz
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch (error) {
+    console.warn("Could not play scan error beep:", error);
+  }
+};
+
 export default function ScannerSim({ onScanSuccess, onSwitchToManual, wargaList }: ScannerSimProps) {
   const [hasCamera, setHasCamera] = useState<boolean | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -65,6 +129,7 @@ export default function ScannerSim({ onScanSuccess, onSwitchToManual, wargaList 
     const exists = checkWargaExists(qrId);
 
     if (!exists) {
+      playErrorBeep(); // Bunyi beep gagal / warning
       setIsError(true);
       setErrorMsg("Kode QR tidak terdaftar!");
       setTimeout(() => {
@@ -74,6 +139,7 @@ export default function ScannerSim({ onScanSuccess, onSwitchToManual, wargaList 
       return;
     }
 
+    playSuccessBeep(); // Bunyi beep sukses
     setScanSuccessAnim(qrId);
     
     // Stop camera track immediately on success to release resource

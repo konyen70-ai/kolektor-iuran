@@ -82,7 +82,8 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => {
           // If offline and request is for a page/html, we can fallback to index.html
-          if (event.request.headers.get("accept").includes("text/html")) {
+          const acceptHeader = event.request.headers.get("accept");
+          if (acceptHeader && acceptHeader.includes("text/html")) {
             return caches.match("/");
           }
         });

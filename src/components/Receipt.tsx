@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Check, Share2, PlusCircle, ArrowRight, ShieldCheck, Sparkles, Home } from "lucide-react";
+import { useState } from "react";
+import { Check, Share2, PlusCircle, ArrowRight, ShieldCheck, Sparkles, Home, MessageSquare, AlertCircle, CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Transaksi, formatMonthId } from "../types";
 
@@ -14,6 +15,8 @@ interface ReceiptProps {
 }
 
 export default function Receipt({ transaction, onNewTransaction, onGoHome }: ReceiptProps) {
+  const [waStatus, setWaStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const formatRupiah = (value: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -34,22 +37,56 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
     });
   };
 
-  const handleShare = () => {
-    const shareText = `*Kolektor Iuran RT 05 RW 02*\n` +
+  const cleanPhoneNumber = (phone?: string) => {
+    if (!phone) return "";
+    let cleaned = phone.replace(/[^\d]/g, "");
+    if (cleaned.startsWith("0")) {
+      cleaned = "62" + cleaned.substring(1);
+    }
+    return cleaned;
+  };
+
+  const buildShareText = () => {
+    return `*Kolektor Iuran RT 05 RW 02*\n` +
       `---------------------------------\n` +
       `*BUKTI SETORAN KAS RESMI*\n` +
       `No. Kuitansi: ${transaction.id}\n` +
       `Nama Warga: ${transaction.wargaNama}\n` +
       `Alamat: Rumah No. ${transaction.wargaNomorRumah}\n` +
       `Bulan Dibayar: ${transaction.bulanBayar.map(formatMonthId).join(", ")}\n` +
-      `Tarif Kategori: ${formatRupiah(transaction.tarifDasar)}/bln\n` +
+      `Tarif Total: ${formatRupiah(transaction.tarifDasar)}/bln\n` +
       `Total Setoran: *${formatRupiah(transaction.totalBayar)}*\n` +
       `Waktu: ${formatDate(transaction.tanggal)}\n` +
-      `Metode: ${transaction.metode === "QR_CODE" ? "Scan QR Code" : "Pencarian Manual"}\n` +
+      `Metode: ${transaction.metode === "QR_CODE" ? "Scan Kartu QR" : "Pencarian Manual"}\n` +
       `Status: *LUNAS*\n` +
       `---------------------------------\n` +
       `Terima kasih telah berpartisipasi membayar iuran lingkungan RT 05 RW 02 tepat waktu!`;
+  };
 
+  const handleSendWhatsApp = () => {
+    const rawPhone = transaction.wargaNomorHp;
+    const phone = cleanPhoneNumber(rawPhone);
+    const text = buildShareText();
+
+    if (!phone) {
+      setWaStatus({
+        type: "error",
+        message: "⚠️ Nomor WhatsApp warga belum terdaftar/diisi. Silakan isi nomor HP/WA di menu Kelola Data Warga.",
+      });
+      return;
+    }
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
+    window.open(waUrl, "_blank");
+
+    setWaStatus({
+      type: "success",
+      message: `✅ Pesan kuitansi berhasil dibuka di WhatsApp (+${phone}). Silakan tekan tombol 'Kirim' di aplikasi WA!`,
+    });
+  };
+
+  const handleShareSystem = () => {
+    const shareText = buildShareText();
     if (navigator.share) {
       navigator.share({
         title: `Kuitansi Iuran ${transaction.wargaNama}`,
@@ -59,7 +96,10 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
       });
     } else {
       navigator.clipboard.writeText(shareText);
-      alert("Bukti pembayaran telah disalin ke clipboard! Siap dikirim ke WhatsApp warga.");
+      setWaStatus({
+        type: "success",
+        message: "📋 Teks kuitansi berhasil disalin ke clipboard! Siap ditempel ke chat.",
+      });
     }
   };
 
@@ -78,6 +118,26 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
         <h3 className="text-lg font-black text-slate-800 tracking-tight mt-4">Pencatatan Berhasil</h3>
         <p className="text-xs text-slate-500 mt-1">Data setoran iuran warga telah tersimpan di sistem.</p>
       </div>
+
+      {/* Status Notifikasi Pengiriman WA */}
+      {waStatus && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-start gap-2.5 shadow-2xs ${
+            waStatus.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-rose-50 border-rose-200 text-rose-900"
+          }`}
+        >
+          {waStatus.type === "success" ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 text-[11px] leading-snug">{waStatus.message}</div>
+        </motion.div>
+      )}
 
       {/* Lembaran Kuitansi Minimalis */}
       <div className="bg-white border border-slate-200 rounded-[28px] p-5 shadow-xs relative overflow-hidden">
@@ -111,6 +171,12 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
             <span className="text-slate-800 font-extrabold">No. {transaction.wargaNomorRumah}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-slate-400 font-medium">No. WhatsApp / HP:</span>
+            <span className="text-slate-800 font-bold font-mono">
+              {transaction.wargaNomorHp ? transaction.wargaNomorHp : <span className="text-slate-400 italic">Belum diisi</span>}
+            </span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-slate-400 font-medium">Waktu Setor:</span>
             <span className="text-slate-800 font-bold">{formatDate(transaction.tanggal)}</span>
           </div>
@@ -123,7 +189,7 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
         {/* Rincian Tarif & Bulan */}
         <div className="py-3.5 border-b border-dashed border-slate-200 text-xs space-y-3">
           <div className="flex justify-between text-slate-500">
-            <span>Tarif Kategori ({transaction.tarifDasar === 100000 ? "Warga Usaha" : "Warga Biasa"}):</span>
+            <span>Tarif Total Per Bulan:</span>
             <span className="font-mono font-bold text-slate-800">{formatRupiah(transaction.tarifDasar)}/bln</span>
           </div>
           <div className="flex justify-between items-start">
@@ -154,12 +220,21 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
       {/* Tombol Bagikan & Selanjutnya */}
       <div className="flex flex-col gap-2.5 pt-2">
         <button
-          onClick={handleShare}
-          className="w-full py-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-black text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+          onClick={handleSendWhatsApp}
+          className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 border border-emerald-500"
+          id="btn-send-wa-receipt-screen"
+        >
+          <MessageSquare className="w-4 h-4 fill-white" />
+          KIRIM STRUK VIA WHATSAPP (WA)
+        </button>
+
+        <button
+          onClick={handleShareSystem}
+          className="w-full py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
           id="btn-share-receipt-screen"
         >
-          <Share2 className="w-4 h-4 text-slate-600" />
-          KIRIM KUITANSI KE WA WARGA
+          <Share2 className="w-3.5 h-3.5 text-slate-600" />
+          BAGIKAN / SALIN TEKS STRUK
         </button>
 
         <button
@@ -174,7 +249,7 @@ export default function Receipt({ transaction, onNewTransaction, onGoHome }: Rec
         {onGoHome && (
           <button
             onClick={onGoHome}
-            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
             id="btn-go-home-receipt-screen"
           >
             <Home className="w-4 h-4 text-slate-400 shrink-0" />
