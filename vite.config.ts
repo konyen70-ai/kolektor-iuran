@@ -31,7 +31,6 @@ export default defineConfig(() => {
           theme_color: '#0f172a',
           background_color: '#0f172a',
           display: 'standalone',
-          display_override: ['standalone', 'minimal-ui', 'browser'],
           orientation: 'portrait-primary',
           start_url: '/',
           scope: '/',
