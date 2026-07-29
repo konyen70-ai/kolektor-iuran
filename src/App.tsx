@@ -21,6 +21,7 @@ import Receipt from "./components/Receipt";
 import TransactionHistory from "./components/TransactionHistory";
 import LaporanMatrixModal from "./components/LaporanMatrixModal";
 import LaporanPendapatanModal from "./components/LaporanPendapatanModal";
+import { PWAInstallModal } from "./components/PWAInstallModal";
 
 type ScreenType = "DASHBOARD" | "SCAN" | "MANUAL" | "MANAGE" | "PAYMENT" | "RECEIPT" | "EDIT_WARGA" | "ADD_WARGA";
 
@@ -1280,6 +1281,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
+      {/* Modal PWA Install Prompt */}
+      <PWAInstallModal />
+
       {/* Bingkai Aplikasi Ringkas (Mobile-First responsive container) */}
       <div
         className="w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative"
