@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { User, Home, Calendar, ShieldCheck, ArrowLeft, Send, Sparkles, Check, Edit2, Info, RefreshCw, QrCode, Phone, AlertTriangle, ArrowRight, CheckCircle2, X } from "lucide-react";
+import { User, Home, Calendar, ShieldCheck, ArrowLeft, Send, Sparkles, Check, Edit2, Info, RefreshCw, QrCode, Phone, AlertTriangle, ArrowRight, CheckCircle2, X, ArrowUpToLine } from "lucide-react";
 import { LIST_BULAN_2026, CURRENT_MONTH_ID } from "../data/dummy";
 import { Warga, formatMonthId } from "../types";
 
@@ -31,6 +31,23 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
 
   // State Modal Peringatan Double Pembayaran
   const [warningModal, setWarningModal] = useState<{ targetMonth: string; nextMonth: string | null } | null>(null);
+
+  // State Scroll Top Button
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const container = document.getElementById("payment-scroll-container") || document.getElementById("warga-details-container");
+    if (!container) return;
+
+    const handleScroll = () => {
+      setShowScrollTop(container.scrollTop > 50);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   // Helper untuk mencari bulan berikutnya yang belum dibayar di tahun 2026
   const findNextUnpaidMonth = (targetMonthId?: string): string | null => {
@@ -160,67 +177,73 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
   };
 
   return (
-    <div className="flex flex-col space-y-2.5 w-full" id="warga-details-container">
-      {/* HEADER CARD WARGA */}
-      <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-3xs relative overflow-hidden">
-        <button
-          onClick={onBack}
-          className="absolute top-3.5 left-3.5 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 transition-colors cursor-pointer"
-          title="Kembali"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-
-        <div className="flex flex-col items-center pt-1.5 pb-0.5 text-center">
-          <div className="w-11 h-11 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 mb-2">
-            <User className="w-5.5 h-5.5 stroke-[2.5]" />
+    <div className="flex flex-col space-y-2 w-full px-0.5 py-0.5 relative" id="warga-details-container">
+      {/* HEADER CARD WARGA - Frame Rapat, Sedikit Rounded, Silang Merah Tanpa Frame */}
+      <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs relative overflow-hidden w-full">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-md flex items-center justify-center border border-blue-100 shrink-0">
+              <User className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-1.5 py-0.2 rounded-xs">
+                ID: {warga.id}
+              </span>
+              <h3 className="font-extrabold text-xs text-slate-800 leading-tight tracking-tight mt-0.5">
+                {warga.namaKepalaKeluarga}
+              </h3>
+            </div>
           </div>
-          <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">
-            ID: {warga.id}
-          </span>
-          <h3 className="font-extrabold text-sm text-slate-800 leading-tight tracking-tight mt-1.5">
-            {warga.namaKepalaKeluarga}
-          </h3>
 
-          <div className="flex flex-col items-center gap-0.5 mt-2 text-[11px] text-slate-500 font-semibold">
-            <div className="flex items-center gap-1.5 flex-wrap justify-center">
-              <Home className="w-3.5 h-3.5 text-blue-500" />
-              <span>No. Rumah: <strong className="text-slate-800 font-extrabold">{warga.nomorRumah}</strong></span>
-              <span>•</span>
-              <span className="bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded font-black text-[9px]">
-                {warga.kategoriIuran}
-              </span>
-              <span>•</span>
-              <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-bold text-[9px]">
-                Kolektor: {warga.namaKolektor || "Is Tentrem"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400 font-mono">
-              <QrCode className="w-3.5 h-3.5 text-slate-400" />
-              <span>No. KK: <strong className="text-slate-600 font-bold">{warga.nomorKk}</strong></span>
-              {warga.nomorHp && (
-                <>
-                  <span className="text-slate-300 mx-1">•</span>
-                  <Phone className="w-3 h-3 text-emerald-600" />
-                  <span>WA: <strong className="text-slate-700 font-bold">{warga.nomorHp}</strong></span>
-                </>
-              )}
-            </div>
+          {/* Icon Silang Merah Tanpa Frame */}
+          <button
+            type="button"
+            onClick={onBack}
+            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-full transition-colors cursor-pointer shrink-0"
+            title="Tutup & Kembali ke Bayar Manual"
+          >
+            <X className="w-5 h-5 stroke-[2.5]" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-1 text-[10.5px] text-slate-500 font-semibold">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Home className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <span>No. Rumah: <strong className="text-slate-800 font-extrabold">{warga.nomorRumah}</strong></span>
+            <span>•</span>
+            <span className="bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded text-[8.5px] font-bold">
+              {warga.kategoriIuran}
+            </span>
+            <span>•</span>
+            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[8.5px] font-bold">
+              Kolektor: {warga.namaKolektor || "Is Tentrem"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+            <QrCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>No. KK: <strong className="text-slate-600 font-bold">{warga.nomorKk}</strong></span>
+            {warga.nomorHp && (
+              <>
+                <span className="text-slate-300 mx-1">•</span>
+                <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>WA: <strong className="text-slate-700 font-bold">{warga.nomorHp}</strong></span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* DETEKSI KASUS 1: JIKA TIDAK MEMILIKI TUNGGAKAN S.D BULAN BERJALAN */}
       {isLunas ? (
-        <div className="space-y-2.5">
-          <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-3xs space-y-4">
+        <div className="space-y-2 w-full">
+          <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs space-y-3 w-full">
             {/* Status lunas header */}
-            <div className="flex items-center gap-3 bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl">
-              <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-                <Check className="w-4.5 h-4.5 stroke-[3]" />
+            <div className="flex items-center gap-2.5 bg-emerald-50/50 border border-emerald-100 p-2.5 rounded-md">
+              <div className="w-7 h-7 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 stroke-[3]" />
               </div>
               <div className="text-left">
-                <span className="text-[9px] font-black text-emerald-800 uppercase tracking-wider block">Status Warga</span>
+                <span className="text-[8.5px] font-black text-emerald-800 uppercase tracking-wider block">Status Warga</span>
                 <h4 className="text-xs font-black text-emerald-950">
                   Lunas s/d {formatMonthId(CURRENT_MONTH_ID)}
                 </h4>
@@ -228,7 +251,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* Banner Informasi Pengalihan Iuran Lanjutan */}
-            <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-[11px] text-blue-900 space-y-1">
+            <div className="bg-blue-50/80 border border-blue-200/80 rounded-md p-2.5 text-[11px] text-blue-900 space-y-1">
               <div className="flex items-center gap-1.5 font-extrabold text-blue-950">
                 <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span>Seluruh iuran s/d {formatMonthId(CURRENT_MONTH_ID)} telah Lunas.</span>
@@ -239,7 +262,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* PILIHAN METODE PEMBAYARAN & GRID BULAN */}
-            <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+            <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Pilih Bulan Pembayaran:
               </span>
@@ -248,7 +271,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 <button
                   type="button"
                   onClick={handlePilihBulanBerjalan}
-                  className={`py-2 px-1.5 rounded-xl text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
+                  className={`py-2 px-1.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
                     pilihanMode === "BERJALAN"
                       ? "bg-blue-600 text-white border-blue-600 shadow-3xs"
                       : "bg-slate-50 text-slate-600 border-slate-200/60 hover:bg-slate-100"
@@ -261,7 +284,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 <button
                   type="button"
                   onClick={() => setPilihanMode("MANUAL")}
-                  className={`py-2 px-1.5 rounded-xl text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
+                  className={`py-2 px-1.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
                     pilihanMode === "MANUAL" || pilihanMode === null
                       ? "bg-blue-600 text-white border-blue-600 shadow-3xs"
                       : "bg-slate-50 text-slate-600 border-slate-200/60 hover:bg-slate-100"
@@ -287,7 +310,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                         key={bulan.id}
                         type="button"
                         onClick={() => handleToggleMonthManual(bulan.id)}
-                        className={`p-1.5 rounded-lg border text-center relative transition-all cursor-pointer text-xs h-8 flex items-center justify-center font-bold active:scale-95 ${
+                        className={`p-1.5 rounded-md border text-center relative transition-all cursor-pointer text-xs h-8 flex items-center justify-center font-bold active:scale-95 ${
                           isBulanLunas
                             ? "bg-amber-50/80 border-amber-200 text-amber-800 hover:border-amber-400 hover:bg-amber-100/80"
                             : isCentang
@@ -314,7 +337,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* NOMINAL SETORAN */}
-            <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+            <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                   Nominal Setoran ({selectedMonths.length} Bulan):
@@ -337,13 +360,13 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                       type="number"
                       value={customNominal || ""}
                       onChange={(e) => setCustomNominal(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-blue-500 rounded-xl font-mono text-sm font-black text-blue-800 outline-none h-10"
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-blue-500 rounded-md font-mono text-sm font-black text-blue-800 outline-none h-10"
                       placeholder="0"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 border border-slate-200/60 rounded-xl px-3.5 py-2 flex justify-between items-center">
+                <div className="bg-slate-50 border border-slate-200/60 rounded-md px-3 py-2 flex justify-between items-center">
                   <div className="flex flex-col">
                     <span className="text-[8.5px] text-slate-400 font-bold uppercase">Tarif Standar</span>
                     <span className="text-[9px] font-mono font-semibold text-slate-500">
@@ -358,7 +381,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* Catatan Pembayaran */}
-            <div className="border-t border-slate-100 pt-3.5 space-y-1.5">
+            <div className="border-t border-slate-100 pt-2.5 space-y-1.5">
               <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Catatan Pembayaran (Opsional):
               </label>
@@ -367,12 +390,12 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 placeholder="Masukkan catatan jika ada..."
                 value={catatan}
                 onChange={(e) => setCatatan(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200/60 rounded-xl outline-none focus:border-blue-500 focus:bg-white font-semibold transition-all h-10"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200/60 rounded-md outline-none focus:border-blue-500 focus:bg-white font-semibold transition-all h-9"
               />
             </div>
 
             {/* RINGKASAN SUBMIT KASUS 1 */}
-            <div className="border-t border-slate-100 pt-3.5 flex justify-between items-center">
+            <div className="border-t border-slate-100 pt-2.5 flex justify-between items-center">
               <div className="flex flex-col text-left">
                 <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest">TOTAL SETORAN</span>
                 <span className="text-[9.5px] font-bold font-mono text-slate-600 mt-0.5 max-w-[150px] truncate">
@@ -386,18 +409,20 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
           </div>
 
           {/* Tombol Aksi Kasus 1 (BATAL / KONFIRMASI) */}
-          <div className="grid grid-cols-2 gap-2.5 pt-0.5">
+          <div className="grid grid-cols-2 gap-2 pt-0.5">
             <button
+              type="button"
               onClick={onBack}
               disabled={isSubmitting}
-              className="py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+              className="py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-extrabold text-xs rounded-md transition-all cursor-pointer"
             >
               BATAL
             </button>
             <button
+              type="button"
               onClick={handleProsesKonfirmasi}
               disabled={selectedMonths.length === 0 || isSubmitting}
-              className={`py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border shadow-sm active:scale-95 ${
+              className={`py-2.5 rounded-md font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border shadow-xs active:scale-95 ${
                 selectedMonths.length === 0 || isSubmitting
                   ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed shadow-none"
                   : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500"
@@ -419,13 +444,13 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
         </div>
       ) : (
         /* DETEKSI KASUS 2: JIKA MEMILIKI TUNGGAKAN */
-        <div className="space-y-2.5">
-          <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-3xs space-y-4">
+        <div className="space-y-2 w-full">
+          <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs space-y-3 w-full">
             
             {/* 1. STATUS TUNGGAKAN */}
-            <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-3 flex flex-col gap-1.5">
+            <div className="bg-amber-50/50 border border-amber-100 rounded-md p-2.5 flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-black uppercase rounded-md tracking-wider">
+                <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-black uppercase rounded-xs tracking-wider">
                   TUNGGAKAN
                 </span>
                 <span className="text-[11px] font-bold text-amber-800">
@@ -448,7 +473,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 {unpaidMonths.map((m) => (
                   <span
                     key={m.id}
-                    className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-mono font-bold text-[9px] rounded border border-amber-200/50"
+                    className="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-mono font-bold text-[9px] rounded-xs border border-amber-200/50"
                   >
                     {formatMonthId(m.id)}
                   </span>
@@ -457,7 +482,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* 2. PILIHAN METODE PEMBAYARAN CEPAT */}
-            <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+            <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Pilih Metode Bayar:
               </span>
@@ -466,7 +491,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 <button
                   type="button"
                   onClick={handlePilihBulanBerjalan}
-                  className={`py-2 px-1.5 rounded-xl text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
+                  className={`py-2 px-1.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
                     pilihanMode === "BERJALAN"
                       ? "bg-blue-600 text-white border-blue-600 shadow-3xs"
                       : "bg-slate-50 text-slate-600 border-slate-200/60 hover:bg-slate-100"
@@ -479,7 +504,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 <button
                   type="button"
                   onClick={handlePilihSemuaTunggakan}
-                  className={`py-2 px-1.5 rounded-xl text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
+                  className={`py-2 px-1.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
                     pilihanMode === "SEMUA_TUNGGAKAN"
                       ? "bg-blue-600 text-white border-blue-600 shadow-3xs"
                       : "bg-slate-50 text-slate-600 border-slate-200/60 hover:bg-slate-100"
@@ -492,7 +517,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 <button
                   type="button"
                   onClick={() => setPilihanMode("MANUAL")}
-                  className={`py-2 px-1.5 rounded-xl text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
+                  className={`py-2 px-1.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer border flex flex-col items-center justify-center gap-0.5 active:scale-95 ${
                     pilihanMode === "MANUAL"
                       ? "bg-blue-600 text-white border-blue-600 shadow-3xs"
                       : "bg-slate-50 text-slate-600 border-slate-200/60 hover:bg-slate-100"
@@ -519,7 +544,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                           key={bulan.id}
                           type="button"
                           onClick={() => handleToggleMonthManual(bulan.id)}
-                          className={`p-1.5 rounded-lg border text-center relative transition-all cursor-pointer text-xs h-8 flex items-center justify-center font-bold active:scale-95 ${
+                          className={`p-1.5 rounded-md border text-center relative transition-all cursor-pointer text-xs h-8 flex items-center justify-center font-bold active:scale-95 ${
                             isBulanLunas
                               ? "bg-slate-100 border-slate-200/80 text-slate-400 hover:border-amber-400 hover:bg-amber-50/60"
                               : isCentang
@@ -547,7 +572,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* 3. NOMINAL SETORAN */}
-            <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+            <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                   Nominal Setoran ({selectedMonths.length} Bulan):
@@ -570,13 +595,13 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                       type="number"
                       value={customNominal || ""}
                       onChange={(e) => setCustomNominal(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-blue-500 rounded-xl font-mono text-sm font-black text-blue-800 outline-none h-10"
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-blue-500 rounded-md font-mono text-sm font-black text-blue-800 outline-none h-10"
                       placeholder="0"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 border border-slate-200/60 rounded-xl px-3.5 py-2 flex justify-between items-center">
+                <div className="bg-slate-50 border border-slate-200/60 rounded-md px-3 py-2 flex justify-between items-center">
                   <div className="flex flex-col">
                     <span className="text-[8.5px] text-slate-400 font-bold uppercase">Tarif Standar</span>
                     <span className="text-[9px] font-mono font-semibold text-slate-500">
@@ -591,7 +616,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {/* 4. CATATAN PEMBAYARAN */}
-            <div className="space-y-1.5 border-t border-slate-100 pt-3.5">
+            <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
               <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Catatan Pembayaran (Opsional):
               </label>
@@ -600,12 +625,12 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
                 placeholder="Masukkan catatan jika ada..."
                 value={catatan}
                 onChange={(e) => setCatatan(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200/60 rounded-xl outline-none focus:border-blue-500 focus:bg-white font-semibold transition-all h-10"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200/60 rounded-md outline-none focus:border-blue-500 focus:bg-white font-semibold transition-all h-9"
               />
             </div>
 
             {/* 5. RINGKASAN SUBMIT */}
-            <div className="border-t border-slate-100 pt-3.5 flex justify-between items-center">
+            <div className="border-t border-slate-100 pt-2.5 flex justify-between items-center">
               <div className="flex flex-col text-left">
                 <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest">TOTAL SETORAN</span>
                 <span className="text-[9.5px] font-bold font-mono text-slate-600 mt-0.5 max-w-[150px] truncate">
@@ -619,12 +644,12 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="grid grid-cols-2 gap-2.5 pt-0.5">
+          <div className="grid grid-cols-2 gap-2 pt-0.5">
             <button
               type="button"
               onClick={onBack}
               disabled={isSubmitting}
-              className="py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+              className="py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-extrabold text-xs rounded-md transition-all cursor-pointer"
             >
               BATAL
             </button>
@@ -632,7 +657,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
               type="button"
               onClick={handleProsesKonfirmasi}
               disabled={selectedMonths.length === 0 || isSubmitting}
-              className={`py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border shadow-sm active:scale-95 ${
+              className={`py-2.5 rounded-md font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border shadow-xs active:scale-95 ${
                 selectedMonths.length === 0 || isSubmitting
                   ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed shadow-none"
                   : "bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
@@ -655,29 +680,48 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
         </div>
       )}
 
+      {/* Floating Panah Atas Dengan Garis (Back To Top - Lingkaran Transparan & Hilang di Atas) */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById("payment-scroll-container") || document.getElementById("warga-details-container");
+            if (el) {
+              el.scrollTo({ top: 0, behavior: "smooth" });
+            } else {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+          className="sticky bottom-3 right-3 ml-auto mr-1 my-1 z-40 p-2.5 bg-white/40 backdrop-blur-md hover:bg-white/80 active:scale-95 text-blue-600 rounded-full shadow-md flex items-center justify-center transition-all cursor-pointer border border-blue-300/80 shrink-0"
+          title="Kembali Ke Atas"
+        >
+          <ArrowUpToLine className="w-4.5 h-4.5 stroke-[2.5]" />
+        </button>
+      )}
+
       {/* MODAL PERINGATAN DOUBLE PEMBAYARAN */}
       {warningModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-amber-200 space-y-4 relative overflow-hidden">
+          <div className="bg-white rounded-xl max-w-sm w-full p-4 shadow-2xl border border-amber-200 space-y-3 relative overflow-hidden">
             {/* Tombol Tutup X */}
             <button
               type="button"
               onClick={() => setWarningModal(null)}
-              className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              className="absolute top-3 right-3 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             {/* Header Icon Amber */}
-            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200 shadow-3xs">
-              <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center mx-auto border border-amber-200 shadow-2xs">
+              <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
             </div>
 
-            <div className="text-center space-y-1.5">
-              <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/60">
+            <div className="text-center space-y-1">
+              <span className="text-[9.5px] font-black text-amber-800 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
                 Peringatan Double Pembayaran
               </span>
-              <h3 className="text-base font-extrabold text-slate-900 leading-snug">
+              <h3 className="text-sm font-extrabold text-slate-900 leading-snug">
                 Bulan {formatMonthId(warningModal.targetMonth)} Sudah Lunas!
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed pt-0.5">
@@ -687,30 +731,30 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
             </div>
 
             {warningModal.nextMonth ? (
-              <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5 text-center space-y-2">
-                <p className="text-[11px] text-blue-900 font-medium leading-tight">
+              <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3 text-center space-y-1.5">
+                <p className="text-[10.5px] text-blue-900 font-medium leading-tight">
                   Apakah Anda ingin mengalihkan pembayaran ke bulan berikutnya yang belum dibayar?
                 </p>
-                <div className="inline-flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
+                <div className="inline-flex items-center gap-2 bg-white px-3 py-1 rounded-md border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
                   <span className="line-through text-slate-400">{formatMonthId(warningModal.targetMonth)}</span>
                   <ArrowRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span className="text-emerald-700 font-extrabold">{formatMonthId(warningModal.nextMonth)}</span>
                 </div>
               </div>
             ) : (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-center">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
                 <p className="text-xs text-emerald-800 font-bold">
                   🎉 Seluruh iuran warga di tahun 2026 telah lunas sepenuhnya!
                 </p>
               </div>
             )}
 
-            <div className="flex flex-col gap-2 pt-1">
+            <div className="flex flex-col gap-1.5 pt-1">
               {warningModal.nextMonth && (
                 <button
                   type="button"
                   onClick={() => handleApplyRedirectMonth(warningModal.targetMonth, warningModal.nextMonth!)}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-md transition-all shadow-xs active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4 text-white" />
                   Ya, Alihkan ke {formatMonthId(warningModal.nextMonth)}
@@ -719,7 +763,7 @@ export default function WargaDetails({ warga, onBack, onSubmitPayment, isSubmitt
               <button
                 type="button"
                 onClick={() => setWarningModal(null)}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-md transition-all cursor-pointer"
               >
                 {warningModal.nextMonth ? "Batal" : "Tutup"}
               </button>

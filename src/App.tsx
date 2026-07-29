@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, MoreVertical, Edit, Download, Save, ArrowLeft, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff, FileSpreadsheet, Upload, Database, Lock, KeyRound, AlertCircle, BarChart3, TrendingUp, Settings, Smartphone, Phone, MessageSquare } from "lucide-react";
+import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, Menu, Edit, Download, Save, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff, FileSpreadsheet, Upload, Database, Lock, KeyRound, AlertCircle, BarChart3, TrendingUp, Settings, Smartphone, Phone, MessageSquare, UserPlus, ArrowUpToLine } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -55,8 +55,11 @@ export default function App() {
   const [activeTransaction, setActiveTransaction] = useState<Transaksi | null>(null);
   const [manualSearchType, setManualSearchType] = useState<"SEMUA" | "NAMA" | "NOMOR_RUMAH" | "ID">("SEMUA");
   const [searchQuery, setSearchQuery] = useState("");
+  const [wargaSearchQuery, setWargaSearchQuery] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingWarga, setIsRefreshingWarga] = useState(false);
+  const [showManualScrollTop, setShowManualScrollTop] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1299,142 +1302,150 @@ export default function App() {
           </div>
 
           {/* Header App Bar - Putih, Bersih, Sederhana, Modern */}
-          {activeScreen === "MANUAL" ? (
+          {activeScreen === "ADD_WARGA" || activeScreen === "EDIT_WARGA" || activeScreen === "PAYMENT" ? null : activeScreen === "MANAGE" ? (
             <header className="bg-white text-slate-850 px-5 py-3.5 shrink-0 shadow-xs relative flex flex-col gap-2.5 border-b border-slate-100 z-30">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-600/20">
-                    <QrCode className="w-5 h-5 text-white stroke-[2.5]" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setActiveScreen("DASHBOARD");
+                    }}
+                    className="p-1.5 -ml-1 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Kembali ke Beranda"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
                   <div>
-                    <h1 className="text-xs font-black tracking-widest leading-none uppercase text-slate-900">KOLEKTOR IURAN RT</h1>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] text-slate-500 font-bold tracking-wider">RT 05 RW 02</span>
-                      <span className="text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold tracking-wider uppercase transition-all shrink-0 select-none bg-slate-100 text-slate-600">
-                        {isOnline ? (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-green-600">Cloud</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
-                            <span className="text-amber-600">Offline</span>
-                          </>
-                        )}
-                      </span>
-                    </div>
+                    <h1 className="text-xs font-black tracking-widest leading-none uppercase text-slate-900">
+                      DATA WARGA
+                    </h1>
+                    <span className="text-[9.5px] text-slate-400 font-bold tracking-wider mt-0.5 block">
+                      RT 05 RW 02 • Total {wargaList.length} Warga
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 relative">
-                  <button
-                    onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                    className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer"
-                    title="Menu Tambahan"
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                  
-                  {isHeaderMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-45" onClick={() => setIsHeaderMenuOpen(false)} />
-                      <div className="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-left overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            setShowMatrixModal(true);
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <BarChart3 className="w-4 h-4 text-blue-500 shrink-0" /> Laporan Bulanan
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            setShowPendapatanModal(true);
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" /> Laporan Pendapatan
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            setActiveModal("EXPORT");
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" /> Export Excel
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            setActiveModal("IMPORT");
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <Upload className="w-4 h-4 text-indigo-500 shrink-0" /> Import Excel
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            setActiveModal("PENGATURAN");
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
-                        </button>
-                        <button
-                          onClick={() => {
-                             setIsHeaderMenuOpen(false);
-                             if (deferredPrompt) {
-                               handleInstallPWA();
-                             } else {
-                               setActiveModal("PWA_GUIDE");
-                             }
-                          }}
-                          className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
-                        >
-                          <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> {deferredPrompt ? "Instal Aplikasi Native" : "Panduan Instal HP"}
-                        </button>
-                      </div>
-                    </>
+                {/* Tombol Tambah Warga (UserPlus) Tanpa Frame di Pojok Kanan Header */}
+                <button
+                  onClick={() => {
+                    setNewNama("");
+                    setNewKk("");
+                    setNewNoRumah("");
+                    setNewKategori("Warga Biasa");
+                    setNewTarif(0);
+                    setActiveScreen("ADD_WARGA");
+                  }}
+                  className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                  title="Tambah Data Warga Baru"
+                >
+                  <UserPlus className="w-5 h-5 stroke-[2.2]" />
+                </button>
+              </div>
+
+              {/* Kolom Pencarian + Tombol Refresh (Tanpa Frame) */}
+              <div className="flex items-center gap-2 w-full">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Cari nama, no. rumah, atau no. KK..."
+                    value={wargaSearchQuery}
+                    onChange={(e) => setWargaSearchQuery(e.target.value)}
+                    className="block w-full pl-9 pr-8 py-1.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200/60 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:outline-none rounded-xl text-xs font-semibold h-9 transition-all text-slate-800 placeholder:text-slate-400"
+                  />
+                  {wargaSearchQuery && (
+                    <button
+                      onClick={() => setWargaSearchQuery("")}
+                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                  
+                </div>
+
+                <button
+                  onClick={async () => {
+                    setIsRefreshingWarga(true);
+                    try {
+                      await loadData();
+                    } finally {
+                      setTimeout(() => {
+                        setIsRefreshingWarga(false);
+                      }, 500);
+                    }
+                  }}
+                  className="p-2 hover:bg-blue-50 active:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full transition-all cursor-pointer shrink-0"
+                  title="Refresh Data Warga"
+                >
+                  <RefreshCw className={`w-4 h-4 transition-transform ${isRefreshingWarga || isLoading ? "animate-spin text-blue-600" : ""}`} />
+                </button>
+              </div>
+            </header>
+          ) : activeScreen === "MANUAL" ? (
+            <header className="bg-white text-slate-850 px-5 py-3 shrink-0 shadow-xs relative flex flex-col gap-2 border-b border-slate-100 z-30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      setCurrentUser(null);
-                      localStorage.removeItem("kolektor_logged_in_user");
                       setActiveScreen("DASHBOARD");
                     }}
-                    className="p-2 hover:bg-rose-50 active:bg-rose-100 text-rose-500 hover:text-rose-700 rounded-full transition-all cursor-pointer flex items-center justify-center"
-                    title="Keluar"
+                    className="p-1.5 -ml-1 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Kembali ke Beranda"
                   >
-                    <LogOut className="w-5 h-5" />
+                    <ArrowLeft className="w-5 h-5" />
                   </button>
+                  <div>
+                    <h1 className="text-xs font-black tracking-widest leading-none uppercase text-slate-900">
+                      BAYAR MANUAL
+                    </h1>
+                    <span className="text-[9.5px] text-slate-400 font-bold tracking-wider mt-0.5 block">
+                      RT 05 RW 02 • Pilih Warga
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="relative w-full">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Search className="h-4.5 w-4.5 text-slate-400" />
+              {/* Kolom Pencarian + Tombol Refresh (Ukuran Presisi Sama Dengan Data Warga) */}
+              <div className="flex items-center gap-2 w-full">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Cari nama, no. rumah, atau no. KK..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="block w-full pl-9 pr-8 py-1.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200/60 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:outline-none rounded-xl text-xs font-semibold h-9 transition-all text-slate-800 placeholder:text-slate-400"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Cari nama, rumah, atau No. KK..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-9.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 text-xs font-semibold h-11 transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+
+                <button
+                  onClick={async () => {
+                    setIsRefreshingWarga(true);
+                    try {
+                      await loadData();
+                    } finally {
+                      setTimeout(() => {
+                        setIsRefreshingWarga(false);
+                      }, 500);
+                    }
+                  }}
+                  className="p-2 hover:bg-blue-50 active:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full transition-all cursor-pointer shrink-0"
+                  title="Muat Ulang Data"
+                >
+                  <RefreshCw className={`w-4 h-4 transition-transform ${isRefreshingWarga || isLoading ? "animate-spin text-blue-600" : ""}`} />
+                </button>
               </div>
             </header>
           ) : (
@@ -1465,12 +1476,24 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-1.5 relative">
+                {!showMatrixModal && !showPendapatanModal && activeModal !== "LAPORAN" && activeScreen !== "DASHBOARD" && (
+                  <button
+                    onClick={() => {
+                      setActiveScreen("DASHBOARD");
+                    }}
+                    className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Kembali ke Beranda"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                )}
+
                 <button
                   onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
                   className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer"
-                  title="Menu Tambahan"
+                  title="Menu Utama"
                 >
-                  <MoreVertical className="w-5 h-5" />
+                  <Menu className="w-5 h-5" />
                 </button>
                 
                 {isHeaderMenuOpen && (
@@ -1525,31 +1548,17 @@ export default function App() {
                       <button
                         onClick={() => {
                           setIsHeaderMenuOpen(false);
-                          if (deferredPrompt) {
-                            handleInstallPWA();
-                          } else {
-                            setActiveModal("PWA_GUIDE");
-                          }
+                          setCurrentUser(null);
+                          localStorage.removeItem("kolektor_logged_in_user");
+                          setActiveScreen("DASHBOARD");
                         }}
-                        className="w-full px-4 py-2.5 text-xs font-black text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-blue-100"
+                        className="w-full px-4 py-2.5 text-xs font-bold text-rose-600 bg-rose-50/50 hover:bg-rose-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-rose-100"
                       >
-                        <Smartphone className="w-4 h-4 text-blue-600 shrink-0" /> {deferredPrompt ? "Instal Aplikasi Native" : "Panduan Instal HP"}
+                        <LogOut className="w-4 h-4 text-rose-500 shrink-0" /> Keluar
                       </button>
                     </div>
                   </>
                 )}
-                
-                <button
-                  onClick={() => {
-                    setCurrentUser(null);
-                    localStorage.removeItem("kolektor_logged_in_user");
-                    setActiveScreen("DASHBOARD");
-                  }}
-                  className="p-2 hover:bg-rose-50 active:bg-rose-100 text-rose-500 hover:text-rose-700 rounded-full transition-all cursor-pointer flex items-center justify-center"
-                  title="Keluar"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
               </div>
             </header>
           )}
@@ -1559,7 +1568,7 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* RINGKASAN DATA HARI INI - Selalu terpampang di halaman penjelajahan utama */}
-          {(activeScreen === "DASHBOARD" || activeScreen === "SCAN" || activeScreen === "MANAGE") && (
+          {(activeScreen === "DASHBOARD" || activeScreen === "SCAN") && (
             <div className="bg-white border-b border-slate-100/40 py-2.5 px-4 grid grid-cols-2 gap-2.5 shadow-none shrink-0">
               {/* Widget 1: Jumlah Transaksi Hari Ini */}
               <div className="bg-slate-50/50 border border-slate-200/50 rounded-xl p-2.5 flex flex-col justify-center">
@@ -1696,61 +1705,75 @@ export default function App() {
 
                 {/* 2. LAYAR CARI MANUAL */}
                 {activeScreen === "MANUAL" && (
-                  <div className="flex-1 flex flex-col overflow-y-auto px-1 py-1 min-h-0">
+                  <div
+                    className="flex-1 flex flex-col overflow-y-auto px-1 py-1 min-h-0 relative scroll-smooth"
+                    id="manual-scroll-container"
+                    onScroll={(e) => {
+                      setShowManualScrollTop(e.currentTarget.scrollTop > 80);
+                    }}
+                  >
                     <ManualSearch
                       query={searchQuery}
                       onSelectWarga={handleSelectWarga}
                       onBackToQR={() => {}}
+                      currentUser={currentUser}
+                      onRefreshData={() => {
+                        DbService.getWargaList().then(setWargaList);
+                        DbService.getTransactions().then(setTransactions);
+                      }}
                     />
+
+                    {/* Floating Panah Atas Dengan Garis (Back To Top - Lingkaran Transparan & Hilang di Atas) */}
+                    {showManualScrollTop && (
+                      <button
+                        onClick={() => {
+                          const el = document.getElementById("manual-scroll-container");
+                          if (el) {
+                            el.scrollTo({ top: 0, behavior: "smooth" });
+                          } else {
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }
+                        }}
+                        className="sticky bottom-4 right-4 ml-auto mr-3 my-2 z-40 p-2.5 bg-white/40 backdrop-blur-md hover:bg-white/80 active:scale-95 text-blue-600 rounded-full shadow-md flex items-center justify-center transition-all cursor-pointer border border-blue-300/80 shrink-0"
+                        title="Kembali Ke Atas"
+                      >
+                        <ArrowUpToLine className="w-5 h-5 stroke-[2.5]" />
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {/* 3. LAYAR DATA WARGA / MANAGE (TAMBAH, LIST & CETAK QR) */}
-                {activeScreen === "MANAGE" && (
-                  <div className="flex flex-col flex-1 space-y-4">
-                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                      <div>
-                        <h3 className="text-[11px] font-black text-slate-800 tracking-tight uppercase">Daftar Warga RT 05</h3>
-                      </div>
+                {/* 3. LAYAR DATA WARGA / MANAGE (LIST & CETAK QR) */}
+                {activeScreen === "MANAGE" && (() => {
+                  const filteredWarga = wargaList.filter((w) => {
+                    if (!wargaSearchQuery.trim()) return true;
+                    const q = wargaSearchQuery.toLowerCase().trim();
+                    return (
+                      w.namaKepalaKeluarga.toLowerCase().includes(q) ||
+                      w.nomorRumah.toLowerCase().includes(q) ||
+                      w.nomorKk.toLowerCase().includes(q) ||
+                      w.id.toLowerCase().includes(q)
+                    );
+                  });
 
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={handleResetDb}
-                          className="py-1.5 px-2.5 bg-white border border-slate-200 text-rose-500 hover:text-rose-800 font-bold text-[10px] rounded-lg flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95"
-                          title="Kosongkan Semua Data"
-                        >
-                          <Trash2 className="w-3 h-3 text-rose-500" />
-                          <span>Kosongkan Data</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setNewNama("");
-                            setNewKk("");
-                            setNewNoRumah("");
-                            setNewKategori("Warga Biasa");
-                            setNewTarif(0);
-                            setActiveScreen("ADD_WARGA");
-                          }}
-                          className="py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] rounded-lg flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Tambah Warga</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Resident Card List */}
-                    <div className="space-y-1 max-h-[490px] overflow-y-auto pr-1">
-                      {wargaList.length === 0 ? (
-                        <div className="py-10 text-center border border-dashed border-slate-200 rounded-2xl bg-white text-slate-400">
-                          <Users className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                          <h4 className="text-xs font-bold text-slate-700">Database Kosong</h4>
-                          <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto">
-                            Belum ada warga yang terdaftar. Ketuk "+ Tambah Warga" untuk memasukkan data warga pertama Anda.
-                          </p>
-                        </div>
-                      ) : (
-                        wargaList.map((w) => {
+                  return (
+                    <div className="flex flex-col flex-1 space-y-3">
+                      {/* Resident Card List */}
+                      <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1">
+                        {filteredWarga.length === 0 ? (
+                          <div className="py-10 text-center border border-dashed border-slate-200 rounded-2xl bg-white text-slate-400">
+                            <Users className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                            <h4 className="text-xs font-bold text-slate-700">
+                              {wargaSearchQuery ? "Warga Tidak Ditemukan" : "Database Kosong"}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto">
+                              {wargaSearchQuery
+                                ? `Tidak ada warga yang cocok dengan kata kunci "${wargaSearchQuery}".`
+                                : "Belum ada warga yang terdaftar. Ketuk tombol + di pojok kanan atas untuk memasukkan data warga."}
+                            </p>
+                          </div>
+                        ) : (
+                          filteredWarga.map((w) => {
                           const isExpanded = expandedWargaId === w.id;
                           return (
                             <div
@@ -1908,19 +1931,22 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                )}
+                );
+              })()}
 
                 {/* 4. LAYAR RINCIAN PEMBAYARAN WARGA */}
                 {activeScreen === "PAYMENT" && selectedWarga && (
-                  <WargaDetails
-                    warga={selectedWarga}
-                    onBack={() => {
-                      setActiveScreen(paymentSource);
-                      setSelectedWarga(null);
-                    }}
-                    onSubmitPayment={handlePaymentSubmit}
-                    isSubmitting={isSubmitting}
-                  />
+                  <div className="flex-1 flex flex-col overflow-y-auto px-1 py-1 min-h-0 relative scroll-smooth w-full" id="payment-scroll-container">
+                    <WargaDetails
+                      warga={selectedWarga}
+                      onBack={() => {
+                        setActiveScreen(paymentSource);
+                        setSelectedWarga(null);
+                      }}
+                      onSubmitPayment={handlePaymentSubmit}
+                      isSubmitting={isSubmitting}
+                    />
+                  </div>
                 )}
 
                 {/* 5. LAYAR BUKTI PEMBAYARAN / KUITANSI DIGITAL */}
@@ -1940,27 +1966,32 @@ export default function App() {
                   />
                 )}
 
-                {/* 6. LAYAR TAMBAH WARGA BARU (FULL PAGE) */}
+                {/* 6. LAYAR TAMBAH WARGA BARU (SUB-HALAMAN / MODAL) */}
                 {activeScreen === "ADD_WARGA" && (
-                  <div className="flex flex-col flex-1 space-y-4">
-                    <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-                      <button
-                        onClick={() => setActiveScreen("MANAGE")}
-                        className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors cursor-pointer"
-                        title="Kembali ke Daftar Warga"
-                      >
-                        <ArrowLeft className="w-5 h-5" />
-                      </button>
-                      <div>
-                        <h3 className="text-base font-extrabold text-slate-800">Tambah Warga Baru</h3>
-                        <p className="text-[10px] text-slate-500">Isi data kepala keluarga baru untuk membuat kartu QR</p>
+                  <div className="flex flex-col flex-1 w-full space-y-3">
+                    <div className="bg-white border border-slate-200/80 rounded-xl p-4 space-y-4 shadow-sm w-full">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                          <h3 className="text-xs font-black tracking-widest uppercase text-slate-900">
+                            TAMBAH WARGA BARU
+                          </h3>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                            Isi data kepala keluarga baru untuk membuat kartu QR
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setActiveScreen("MANAGE")}
+                          className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-full transition-colors cursor-pointer shrink-0"
+                          title="Tutup Modal"
+                        >
+                          <X className="w-5 h-5 stroke-[2.5]" />
+                        </button>
                       </div>
-                    </div>
 
-                    <form
-                      onSubmit={handleAddWarga}
-                      className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs"
-                    >
+                      <form
+                        onSubmit={handleAddWarga}
+                        className="space-y-4"
+                      >
                       <div className="space-y-4">
                         <div className="flex flex-col space-y-1.5">
                           <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
@@ -2182,32 +2213,38 @@ export default function App() {
                       </div>
                     </form>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* 7. LAYAR EDIT DATA WARGA (FULL PAGE) */}
+                {/* 7. LAYAR EDIT DATA WARGA (SUB-HALAMAN / MODAL) */}
                 {activeScreen === "EDIT_WARGA" && editingWarga && (
-                  <div className="flex flex-col flex-1 space-y-4">
-                    <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-                      <button
-                        onClick={() => {
-                          setEditingWarga(null);
-                          setActiveScreen("MANAGE");
-                        }}
-                        className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors cursor-pointer"
-                        title="Kembali ke Daftar Warga"
-                      >
-                        <ArrowLeft className="w-5 h-5" />
-                      </button>
-                      <div>
-                        <h3 className="text-base font-extrabold text-slate-800">Edit Data Warga</h3>
-                        <p className="text-[10px] text-slate-500">Perbarui data kepala keluarga dan simpan perubahan</p>
+                  <div className="flex flex-col flex-1 w-full space-y-3">
+                    <div className="bg-white border border-slate-200/80 rounded-xl p-4 space-y-4 shadow-sm w-full">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                          <h3 className="text-xs font-black tracking-widest uppercase text-slate-900">
+                            EDIT DATA WARGA
+                          </h3>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                            Perbarui data kepala keluarga dan simpan perubahan
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingWarga(null);
+                            setActiveScreen("MANAGE");
+                          }}
+                          className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-full transition-colors cursor-pointer shrink-0"
+                          title="Tutup Modal"
+                        >
+                          <X className="w-5 h-5 stroke-[2.5]" />
+                        </button>
                       </div>
-                    </div>
 
-                    <form
-                      onSubmit={handleUpdateWarga}
-                      className="bg-white border border-amber-200 bg-amber-50/5 rounded-2xl p-5 space-y-4 shadow-xs"
-                    >
+                      <form
+                        onSubmit={handleUpdateWarga}
+                        className="space-y-4"
+                      >
                       <div className="space-y-4">
                         <div className="flex flex-col space-y-1.5">
                           <label className="text-[10.5px] font-extrabold text-slate-600 uppercase tracking-wider">
@@ -2432,7 +2469,8 @@ export default function App() {
                       </div>
                     </form>
                   </div>
-                )}
+                </div>
+              )}
             </div>
           </main>
         )}
@@ -3314,106 +3352,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* MODAL PANDUAN PWA INSTAL APLIKASI HP */}
-                {activeModal === "PWA_GUIDE" && (
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
-                    <div className="bg-gradient-to-br from-blue-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg border border-blue-500/30 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 border border-blue-400/40 shadow-xs">
-                          <Smartphone className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-black uppercase tracking-wider text-white">Aplikasi Kolektor Iuran RT 05</h3>
-                          <p className="text-xs text-blue-200">Panduan Menginstal di HP Android & iPhone</p>
-                        </div>
-                      </div>
-
-                      {deferredPrompt ? (
-                        <div className="bg-blue-600/30 border border-blue-400/40 rounded-xl p-3 text-xs space-y-2">
-                          <p className="font-bold text-blue-100">
-                            ✨ Browser HP Anda sudah mendukung instalasi otomatis 1-klik!
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveModal("NONE");
-                              handleInstallPWA();
-                            }}
-                            className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            <Smartphone className="w-4 h-4" />
-                            <span>INSTAL LANGSUNG SEKARANG</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          Aplikasi ini menggunakan teknologi <strong>Progressive Web App (PWA)</strong>. Anda dapat menyimpannya langsung ke Layar Utama (Homescreen) HP tanpa perlu download dari Google Play Store / App Store.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Panduan Android Google Chrome & Edge */}
-                    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-3 text-slate-800">
-                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <span className="text-base">🤖</span>
-                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Cara Instal di Android (Google Chrome / Edge)</h4>
-                      </div>
-
-                      <ol className="text-xs space-y-2.5 text-slate-700 font-medium pl-1">
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
-                          <span>Buka menu browser dengan mengetuk <strong>Titik Tiga (⋮)</strong> di pojok kanan atas layar HP Anda.</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-                          <span>Pilih menu <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama" (Add to Home screen)</strong>.</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
-                          <span>Ketuk tombol <strong>"Instal" / "Tambah"</strong> pada dialog konfirmasi yang muncul.</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
-                          <span>Selesai! Icon <strong>"Iuran RT"</strong> akan muncul di Homescreen HP Anda. Saat dibuka, <strong>bilah alamat browser tidak akan muncul lagi</strong> (Tampilan Fullscreen / Standalone).</span>
-                        </li>
-                      </ol>
-                    </div>
-
-                    {/* Panduan iPhone / iPad Safari */}
-                    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-3 text-slate-800">
-                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <span className="text-base">🍎</span>
-                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Cara Instal di iPhone / iPad (Safari)</h4>
-                      </div>
-
-                      <ol className="text-xs space-y-2.5 text-slate-700 font-medium pl-1">
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
-                          <span>Buka aplikasi menggunakan browser <strong>Safari</strong> di iPhone Anda.</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-                          <span>Ketuk ikon <strong>Bagikan / Share (kotak dengan panah ke atas)</strong> di bagian bawah layar.</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
-                          <span>Geser ke bawah lalu pilih <strong>"Tambah ke Utama" (Add to Home Screen)</strong>.</span>
-                        </li>
-                      </ol>
-                    </div>
-
-                    {/* Catatan Buka di Tab Baru */}
-                    <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
-                      <p className="font-extrabold flex items-center gap-1.5 text-amber-950">
-                        <span>💡</span>
-                        <span>Catatan Penting Tampilan Standalone:</span>
-                      </p>
-                      <p className="text-[11px] leading-relaxed text-amber-800">
-                        Jika Anda saat ini melihat aplikasi di dalam pratinjau editor AI Studio (iframe), pastikan untuk mengetuk tombol <strong>"Buka di Tab Baru" / "Open in New Tab"</strong> di pojok kanan atas browser terlebih dahulu agar fitur instalasi PWA dan tampilan tanpa bilah alamat dapat aktif sempurna di HP Anda.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {/* MODAL PANDUAN PWA DIHAPUS */}
               </div>
             </motion.div>
           )}

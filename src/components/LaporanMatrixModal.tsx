@@ -345,10 +345,10 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
             <button
               type="button"
               onClick={() => setShowActionMenu(!showActionMenu)}
-              className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer border ${
+              className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
                 showActionMenu
-                  ? "text-blue-700 bg-blue-50 border-blue-200 shadow-2xs"
-                  : "text-slate-700 bg-white border-slate-200 hover:text-slate-900 hover:bg-slate-50"
+                  ? "text-blue-600 bg-blue-50/80"
+                  : "text-blue-500 hover:text-blue-700 hover:bg-blue-50/60"
               }`}
               title="Opsi Cetak & Export Laporan"
             >
