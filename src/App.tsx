@@ -22,6 +22,7 @@ import TransactionHistory from "./components/TransactionHistory";
 import LaporanMatrixModal from "./components/LaporanMatrixModal";
 import LaporanPendapatanModal from "./components/LaporanPendapatanModal";
 import { PWAInstallModal } from "./components/PWAInstallModal";
+import { NavigationDrawer } from "./components/NavigationDrawer";
 
 type ScreenType = "DASHBOARD" | "SCAN" | "MANUAL" | "MANAGE" | "PAYMENT" | "RECEIPT" | "EDIT_WARGA" | "ADD_WARGA";
 
@@ -1289,6 +1290,23 @@ export default function App() {
         className="w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative"
         id="android-phone-frame"
       >
+        {/* Navigation Drawer Overlay */}
+        <NavigationDrawer
+          isOpen={isHeaderMenuOpen}
+          onClose={() => setIsHeaderMenuOpen(false)}
+          currentUser={currentUser}
+          isOnline={isOnline}
+          onNavigate={(screen) => setActiveScreen(screen)}
+          onOpenHistoryTray={() => setShowHistoryTray(true)}
+          onOpenMatrixModal={() => setShowMatrixModal(true)}
+          onOpenPendapatanModal={() => setShowPendapatanModal(true)}
+          onOpenModal={(modal) => setActiveModal(modal)}
+          onLogout={() => {
+            setCurrentUser(null);
+            localStorage.removeItem("kolektor_logged_in_user");
+            setActiveScreen("DASHBOARD");
+          }}
+        />
         {/* Sticky Header Wrapper */}
         <div className="shrink-0 flex flex-col w-full bg-white z-40 border-b border-slate-100 relative">
           {/* Android Status Bar */}
@@ -1329,21 +1347,31 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Tombol Tambah Warga (UserPlus) Tanpa Frame di Pojok Kanan Header */}
-                <button
-                  onClick={() => {
-                    setNewNama("");
-                    setNewKk("");
-                    setNewNoRumah("");
-                    setNewKategori("Warga Biasa");
-                    setNewTarif(0);
-                    setActiveScreen("ADD_WARGA");
-                  }}
-                  className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
-                  title="Tambah Data Warga Baru"
-                >
-                  <UserPlus className="w-5 h-5 stroke-[2.2]" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* Tombol Tambah Warga */}
+                  <button
+                    onClick={() => {
+                      setNewNama("");
+                      setNewKk("");
+                      setNewNoRumah("");
+                      setNewKategori("Warga Biasa");
+                      setNewTarif(0);
+                      setActiveScreen("ADD_WARGA");
+                    }}
+                    className="p-1.5 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Tambah Data Warga Baru"
+                  >
+                    <UserPlus className="w-5 h-5 stroke-[2.2]" />
+                  </button>
+                  {/* Tombol Menu Drawer */}
+                  <button
+                    onClick={() => setIsHeaderMenuOpen(true)}
+                    className="p-1.5 hover:bg-blue-50 active:bg-blue-100 text-slate-600 hover:text-blue-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Menu Utama & Drawer Navigasi"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Kolom Pencarian + Tombol Refresh (Tanpa Frame) */}
@@ -1409,6 +1437,14 @@ export default function App() {
                     </span>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => setIsHeaderMenuOpen(true)}
+                  className="p-1.5 hover:bg-blue-50 active:bg-blue-100 text-slate-600 hover:text-blue-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                  title="Menu Utama & Drawer Navigasi"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
               </div>
 
               {/* Kolom Pencarian + Tombol Refresh (Ukuran Presisi Sama Dengan Data Warga) */}
@@ -1493,76 +1529,12 @@ export default function App() {
                 )}
 
                 <button
-                  onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                  onClick={() => setIsHeaderMenuOpen(true)}
                   className="p-2 hover:bg-blue-50 active:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-full transition-all cursor-pointer"
-                  title="Menu Utama"
+                  title="Menu Utama & Drawer Navigasi"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-                
-                {isHeaderMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-45" onClick={() => setIsHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-left overflow-hidden">
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setShowMatrixModal(true);
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                      >
-                        <BarChart3 className="w-4 h-4 text-blue-500 shrink-0" /> Laporan Bulanan
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setShowPendapatanModal(true);
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                      >
-                        <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" /> Laporan Pendapatan
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setActiveModal("EXPORT");
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                      >
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" /> Export Excel
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setActiveModal("IMPORT");
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                      >
-                        <Upload className="w-4 h-4 text-indigo-500 shrink-0" /> Import Excel
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setActiveModal("PENGATURAN");
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                      >
-                        <Settings className="w-4 h-4 text-slate-500 shrink-0" /> Pengaturan
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setCurrentUser(null);
-                          localStorage.removeItem("kolektor_logged_in_user");
-                          setActiveScreen("DASHBOARD");
-                        }}
-                        className="w-full px-4 py-2.5 text-xs font-bold text-rose-600 bg-rose-50/50 hover:bg-rose-100 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-rose-100"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-500 shrink-0" /> Keluar
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
             </header>
           )}
