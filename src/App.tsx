@@ -179,24 +179,28 @@ export default function App() {
 
   // Effect untuk mendeteksi event instalasi PWA
   useEffect(() => {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    console.log("[PWA Status] Display mode standalone:", isStandalone);
+    console.log("[PWA Status] User Agent:", navigator.userAgent);
+
+    if (isStandalone) {
+      setIsAppInstalled(true);
+    }
+
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log("[PWA] beforeinstallprompt event fired");
+      console.log("[PWA Prompt] 'beforeinstallprompt' event caught successfully! PWA prompt is ready to trigger.", e);
     };
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setIsAppInstalled(true);
-      console.log("[PWA] App was installed successfully");
+      console.log("[PWA Status] App was installed successfully as native/standalone PWA.");
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsAppInstalled(true);
-    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);

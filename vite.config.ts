@@ -32,6 +32,7 @@ export default defineConfig(() => {
           theme_color: '#0f172a',
           background_color: '#0f172a',
           display: 'standalone',
+          display_override: ['standalone', 'minimal-ui'],
           orientation: 'portrait-primary',
           start_url: '/',
           scope: '/',
@@ -42,13 +43,13 @@ export default defineConfig(() => {
               src: '/pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
             },
             {
               src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
             },
             {
               src: '/pwa-maskable-512x512.png',
