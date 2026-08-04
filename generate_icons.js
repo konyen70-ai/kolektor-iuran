@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-// 1. Base SVG for normal icons (192, 512, apple-touch 180)
+// Clean vector design for Kolektor Iuran RT 05
 const svgIcon = `
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -23,39 +23,34 @@ const svgIcon = `
     </filter>
   </defs>
 
-  <!-- Background rounded rect -->
+  <!-- Outer background rounded rect -->
   <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
 
   <!-- Outer Ring / Accent line -->
   <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="#334155" stroke-width="4" opacity="0.6" />
 
-  <!-- Shield / House Badge -->
+  <!-- House Badge -->
   <g filter="url(#shadow)">
-    <!-- House outline & roof -->
     <path d="M256 96 L400 208 V384 C400 401.673 385.673 416 368 416 H144 C126.327 416 112 401.673 112 384 V208 Z" fill="url(#emeraldGrad)" />
-    <!-- Roof highlight -->
     <path d="M256 80 L420 208 H380 L256 110 L132 208 H92 Z" fill="#34d399" />
   </g>
 
   <!-- Cash / Coins Emblem in center -->
   <g transform="translate(186, 216)">
-    <!-- Main Card / Wallet -->
     <rect x="0" y="20" width="140" height="96" rx="16" fill="#ffffff" />
     <rect x="0" y="36" width="140" height="20" fill="#0f172a" />
     <circle cx="105" cy="78" r="14" fill="url(#goldGrad)" />
-    <!-- Gold Coin -->
     <circle cx="70" cy="-10" r="42" fill="url(#goldGrad)" filter="url(#shadow)" />
     <circle cx="70" cy="-10" r="32" fill="none" stroke="#fef08a" stroke-width="3" />
     <text x="70" y="2" font-family="Arial, sans-serif" font-weight="900" font-size="34" fill="#78350f" text-anchor="middle">Rp</text>
   </g>
 
-  <!-- RT 05 Text Banner -->
+  <!-- RT Banner -->
   <rect x="146" y="348" width="220" height="44" rx="22" fill="#0f172a" stroke="#34d399" stroke-width="3" />
-  <text x="256" y="378" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle" letter-spacing="2">RT 05 / RW 02</text>
+  <text x="256" y="378" font-family="Arial, sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle" letter-spacing="2">RT 05 / RW 02</text>
 </svg>
 `;
 
-// 2. Maskable SVG (with padding so important content stays in safe center zone)
 const svgMaskable = `
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -73,10 +68,8 @@ const svgMaskable = `
     </linearGradient>
   </defs>
 
-  <!-- Full background covering entire canvas for maskable -->
   <rect width="512" height="512" fill="url(#bgGrad)" />
 
-  <!-- Scaled content inside 80% safe zone (center at 256, scale 0.75) -->
   <g transform="translate(256, 256) scale(0.72) translate(-256, -256)">
     <path d="M256 96 L400 208 V384 C400 401.673 385.673 416 368 416 H144 C126.327 416 112 401.673 112 384 V208 Z" fill="url(#emeraldGrad)" />
     <path d="M256 80 L420 208 H380 L256 110 L132 208 H92 Z" fill="#34d399" />
@@ -91,7 +84,7 @@ const svgMaskable = `
     </g>
 
     <rect x="146" y="348" width="220" height="44" rx="22" fill="#0f172a" stroke="#34d399" stroke-width="3" />
-    <text x="256" y="378" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle" letter-spacing="2">RT 05 / RW 02</text>
+    <text x="256" y="378" font-family="Arial, sans-serif" font-weight="800" font-size="24" fill="#ffffff" text-anchor="middle" letter-spacing="2">RT 05 / RW 02</text>
   </g>
 </svg>
 `;
@@ -105,52 +98,31 @@ async function generate() {
   const svgBuffer = Buffer.from(svgIcon);
   const maskableBuffer = Buffer.from(svgMaskable);
 
-  // Generate 512x512
+  // 1. Generate pwa-512x512.png
   await sharp(svgBuffer)
     .resize(512, 512)
-    .png({ compressionLevel: 9 })
+    .png()
     .toFile(path.join(publicDir, 'pwa-512x512.png'));
 
-  await sharp(svgBuffer)
-    .resize(512, 512)
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(publicDir, 'icon-512.png'));
-
-  // Generate 192x192
+  // 2. Generate pwa-192x192.png
   await sharp(svgBuffer)
     .resize(192, 192)
-    .png({ compressionLevel: 9 })
+    .png()
     .toFile(path.join(publicDir, 'pwa-192x192.png'));
 
-  await sharp(svgBuffer)
-    .resize(192, 192)
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(publicDir, 'icon-192.png'));
-
-  // Generate Maskable 512x512
+  // 3. Generate pwa-maskable-512x512.png
   await sharp(maskableBuffer)
     .resize(512, 512)
-    .png({ compressionLevel: 9 })
+    .png()
     .toFile(path.join(publicDir, 'pwa-maskable-512x512.png'));
 
-  await sharp(maskableBuffer)
-    .resize(512, 512)
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(publicDir, 'icon-maskable.png'));
-
-  // Apple Touch Icon 180x180
+  // 4. Generate icon.png (favicon)
   await sharp(svgBuffer)
-    .resize(180, 180)
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(publicDir, 'apple-touch-icon.png'));
-
-  // Favicon 32x32
-  await sharp(svgBuffer)
-    .resize(32, 32)
-    .png({ compressionLevel: 9 })
+    .resize(128, 128)
+    .png()
     .toFile(path.join(publicDir, 'icon.png'));
 
-  console.log('Successfully generated all PWA icons with sharp!');
+  console.log('Icons generated successfully with sharp!');
 }
 
 generate().catch(console.error);

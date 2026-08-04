@@ -13,6 +13,7 @@ import {
   Upload,
   Settings,
   Smartphone,
+  Download,
   LogOut,
   ChevronDown,
   ChevronRight,
@@ -330,8 +331,8 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                         onClick={() => handleAction(() => onOpenModal("PWA_GUIDE"))}
                         className="w-full px-3 py-2 rounded-xl text-xs font-normal text-slate-700 hover:text-blue-600 hover:bg-blue-50 flex items-center gap-2.5 transition-all cursor-pointer"
                       >
-                        <Smartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span>Panduan Install PWA</span>
+                        <Download className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span>Install Aplikasi (PWA)</span>
                       </button>
                     </motion.div>
                   )}

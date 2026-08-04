@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, Menu, Edit, Download, Save, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff, FileSpreadsheet, Upload, Database, Lock, KeyRound, AlertCircle, BarChart3, TrendingUp, Settings, Smartphone, Phone, MessageSquare, UserPlus, ArrowUpToLine } from "lucide-react";
+import { QrCode, Search, Clock, ShieldCheck, RefreshCw, Plus, Trash2, Printer, X, Check, Users, Home, Info, Sparkles, Menu, Edit, Download, Save, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, LogOut, Wifi, WifiOff, FileSpreadsheet, Upload, Database, Lock, KeyRound, AlertCircle, BarChart3, TrendingUp, Settings, Smartphone, Phone, MessageSquare, UserPlus, ArrowUpToLine, Monitor, Table, Grid, Share } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -23,6 +23,9 @@ import LaporanMatrixModal from "./components/LaporanMatrixModal";
 import LaporanPendapatanModal from "./components/LaporanPendapatanModal";
 import { PWAInstallModal } from "./components/PWAInstallModal";
 import { NavigationDrawer } from "./components/NavigationDrawer";
+import { PcHeader } from "./components/PcHeader";
+import { PcDashboardView } from "./components/PcDashboardView";
+import { PcWargaManageView } from "./components/PcWargaManageView";
 
 type ScreenType = "DASHBOARD" | "SCAN" | "MANUAL" | "MANAGE" | "PAYMENT" | "RECEIPT" | "EDIT_WARGA" | "ADD_WARGA";
 
@@ -65,6 +68,26 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Responsive PC/Laptop vs Mobile View Mode State
+  const [viewMode, setViewMode] = useState<"AUTO" | "MOBILE" | "DESKTOP">(() => {
+    const saved = localStorage.getItem("kolektor_view_mode");
+    return (saved as "AUTO" | "MOBILE" | "DESKTOP") || "AUTO";
+  });
+  const [windowWidth, setWindowWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const handleViewModeChange = (mode: "AUTO" | "MOBILE" | "DESKTOP") => {
+    setViewMode(mode);
+    localStorage.setItem("kolektor_view_mode", mode);
+  };
+
+  const isPcLayout = viewMode === "DESKTOP" || (viewMode === "AUTO" && windowWidth >= 1024);
 
   // State Pengaturan Jenis & Tarif Iuran
   const [iuranConfigList, setIuranConfigList] = useState<IuranItemConfig[]>(() => {
@@ -1287,11 +1310,90 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
       {/* Modal PWA Install Prompt */}
-      <PWAInstallModal />
+      <PWAInstallModal
+        isOpen={activeModal === "PWA_GUIDE" || activeModal === ("PWA_INSTALL" as any) ? true : undefined}
+        onClose={() => setActiveModal("NONE")}
+      />
 
-      {/* Bingkai Aplikasi Ringkas (Mobile-First responsive container) */}
+      {/* Floating Top Bar for PC / Laptop View Switcher */}
+      {windowWidth >= 1024 && (
+        <div className="w-full max-w-6xl xl:max-w-7xl mb-3 px-4 py-2.5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between text-xs font-semibold text-slate-700 shrink-0 z-50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black shadow-xs">
+              <QrCode className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-black text-slate-900 uppercase tracking-wide block leading-none text-xs">
+                KOLEKTOR IURAN RT 05 RW 02
+              </span>
+              <span className="text-[10px] text-slate-500 font-semibold block leading-tight">
+                Aplikasi Pengelolaan & Penagihan Iuran Digital
+              </span>
+            </div>
+          </div>
+
+          {/* Mode Switcher Buttons */}
+          <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+            <button
+              onClick={() => handleViewModeChange("AUTO")}
+              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "AUTO"
+                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Otomatis menyesuaikan dengan layar device"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Otomatis</span>
+            </button>
+            <button
+              onClick={() => handleViewModeChange("DESKTOP")}
+              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "DESKTOP"
+                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Tampilan Luas Khusus Laptop & PC"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Mode Laptop / PC</span>
+            </button>
+            <button
+              onClick={() => handleViewModeChange("MOBILE")}
+              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "MOBILE"
+                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Tampilan Frame Handphone (Sesuai Desain Awal)"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Mode Handphone</span>
+            </button>
+          </div>
+
+          {/* Right Badge Info */}
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+              <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+              {isOnline ? "Online Cloud" : "Offline Mode"}
+            </span>
+            {currentUser && (
+              <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+                👤 {currentUser.username.toUpperCase()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bingkai Utama Aplikasi (Versi Responsive HP & PC) */}
       <div
-        className="w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative"
+        className={
+          isPcLayout
+            ? "w-full max-w-6xl xl:max-w-7xl bg-white sm:rounded-2xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col min-h-screen lg:min-h-[85vh] lg:h-[880px] relative transition-all duration-300"
+            : "w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative transition-all duration-300"
+        }
         id="android-phone-frame"
       >
         {/* Navigation Drawer Overlay */}
@@ -1312,7 +1414,29 @@ export default function App() {
           }}
         />
         {/* Sticky Header Wrapper */}
-        <div className="shrink-0 flex flex-col w-full bg-white z-40 border-b border-slate-100 relative">
+        {isPcLayout ? (
+          <PcHeader
+            activeScreen={activeScreen}
+            setActiveScreen={setActiveScreen}
+            wargaCount={wargaList.length}
+            currentUser={currentUser}
+            isOnline={isOnline}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            onOpenMatrix={() => setShowMatrixModal(true)}
+            onOpenPendapatan={() => setShowPendapatanModal(true)}
+            onOpenAddWarga={() => {
+              setNewNama("");
+              setNewKk("");
+              setNewNoRumah("");
+              setNewKategori("Warga Biasa");
+              setNewTarif(0);
+              setActiveScreen("ADD_WARGA");
+            }}
+            onOpenMenu={() => setIsHeaderMenuOpen(true)}
+          />
+        ) : (
+          <div className="shrink-0 flex flex-col w-full bg-white z-40 border-b border-slate-100 relative">
           {/* Android Status Bar */}
           <div className="hidden sm:flex bg-slate-50 text-slate-700/80 px-6 py-2 justify-between items-center text-[10px] font-bold tracking-widest select-none shrink-0 border-b border-slate-100/60">
             <span>09:41</span>
@@ -1543,12 +1667,13 @@ export default function App() {
             </header>
           )}
         </div>
+        )}
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* RINGKASAN DATA HARI INI - Selalu terpampang di halaman penjelajahan utama */}
-          {(activeScreen === "DASHBOARD" || activeScreen === "SCAN") && (
+          {/* RINGKASAN DATA HARI INI - Selalu terpampang di halaman penjelajahan utama (khusus Tampilan HP) */}
+          {!isPcLayout && (activeScreen === "DASHBOARD" || activeScreen === "SCAN") && (
             <div className="bg-white border-b border-slate-100/40 py-2.5 px-4 grid grid-cols-2 gap-2.5 shadow-none shrink-0">
               {/* Widget 1: Jumlah Transaksi Hari Ini */}
               <div className="bg-slate-50/50 border border-slate-200/50 rounded-xl p-2.5 flex flex-col justify-center">
@@ -1569,16 +1694,79 @@ export default function App() {
             </div>
           )}
 
-
-
         {/* Loading utama */}
         {isLoading && activeScreen === "SCAN" && wargaList.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400 bg-slate-50">
             <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mb-2" />
             <span className="text-xs font-bold text-slate-600">Sinkronisasi data warga...</span>
           </div>
+        ) : isPcLayout && activeScreen === "DASHBOARD" ? (
+          <PcDashboardView
+            currentUser={currentUser}
+            wargaList={wargaList}
+            transactions={transactions}
+            totalTransaksiHariIni={totalTransaksiHariIni}
+            totalUangDiterimaHariIni={totalUangDiterimaHariIni}
+            formatRupiah={formatRupiah}
+            onNavigate={(screen) => setActiveScreen(screen)}
+            onOpenMatrix={() => setShowMatrixModal(true)}
+            onOpenPendapatan={() => setShowPendapatanModal(true)}
+            onOpenModal={(modal) => setActiveModal(modal)}
+            onSelectTransaction={(tx) => {
+              setActiveTransaction(tx);
+              setActiveModal("RECEIPT" as any);
+            }}
+            currentMonthId={CURRENT_MONTH_ID}
+          />
+        ) : isPcLayout && activeScreen === "MANAGE" ? (
+          <PcWargaManageView
+            wargaList={wargaList}
+            wargaSearchQuery={wargaSearchQuery}
+            setWargaSearchQuery={setWargaSearchQuery}
+            currentMonthId={CURRENT_MONTH_ID}
+            formatRupiah={formatRupiah}
+            onOpenAddWarga={() => {
+              setNewNama("");
+              setNewKk("");
+              setNewNoRumah("");
+              setNewKategori("Warga Biasa");
+              setNewTarif(0);
+              setActiveScreen("ADD_WARGA");
+            }}
+            onOpenEditWarga={(w) => {
+              setSelectedWarga(w);
+              setNewNama(w.namaKepalaKeluarga);
+              setNewKk(w.nomorKk);
+              setNewNoRumah(w.nomorRumah);
+              setNewKategori(w.kategoriIuran);
+              setNewTarif(w.tarifPerBulan);
+              setActiveScreen("EDIT_WARGA");
+            }}
+            onDeleteWarga={async (id) => {
+              setIsLoading(true);
+              try {
+                await DbService.deleteWarga(id);
+                await loadData();
+              } catch (err) {
+                console.error(err);
+                alert("Gagal menghapus data warga.");
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            onSelectPayWarga={(w) => {
+              setSelectedWarga(w);
+              setPaymentSource("MANUAL");
+              setActiveScreen("PAYMENT");
+            }}
+            onPrintQr={(w) => {
+              setActiveCardWarga(w);
+            }}
+            onOpenExport={() => handleExportToExcel()}
+            onOpenImport={() => setActiveModal("IMPORT")}
+          />
         ) : (
-          /* Area Isi Layar Dinamis */
+          /* Area Isi Layar Dinamis (Tampilan Sesuai Mobile) */
           <main className={`flex-1 flex flex-col bg-slate-50 ${
             activeScreen === "MANUAL"
               ? "p-0 overflow-hidden"
@@ -3328,6 +3516,55 @@ export default function App() {
                           </div>
                         );
                       })()}
+                    </div>
+
+                    {/* Card Menu Install PWA */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 border border-blue-200/80 rounded-xl p-3.5 space-y-2.5 shadow-2xs">
+                      <div className="flex items-center gap-2 pb-1 border-b border-blue-100">
+                        <Smartphone className="w-4 h-4 text-blue-600 shrink-0" />
+                        <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight font-sans">
+                          Install Aplikasi Native (PWA)
+                        </h4>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-[10.5px] text-slate-600 font-semibold leading-relaxed">
+                          Pasang aplikasi <b>Kolektor Iuran RT</b> langsung di layar utama HP Anda tanpa melalui PlayStore. Lebih cepat, hemat kuota, dan dapat diakses saat offline.
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveModal("PWA_INSTALL" as any)}
+                            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-xs cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                          >
+                            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>INSTALL APLIKASI (PWA) SEKARANG</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cleanUrl = window.location.origin + (window.location.pathname || "/");
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(cleanUrl);
+                              } else {
+                                const input = document.createElement("input");
+                                input.value = cleanUrl;
+                                document.body.appendChild(input);
+                                input.select();
+                                document.execCommand("copy");
+                                document.body.removeChild(input);
+                              }
+                              alert("Tautan aplikasi telah disalin ke clipboard!");
+                            }}
+                            className="py-2.5 px-3 bg-white hover:bg-slate-50 border border-blue-200 text-blue-700 font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shrink-0"
+                            title="Salin Tautan Aplikasi"
+                          >
+                            <Share className="w-3.5 h-3.5" />
+                            <span>Salin Tautan</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

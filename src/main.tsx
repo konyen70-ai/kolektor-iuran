@@ -4,6 +4,12 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
 import './index.css';
 
+// Capture beforeinstallprompt event immediately on load
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  (window as any).__deferredPwaPrompt = e;
+});
+
 // Register and update PWA service worker with detailed logs
 const updateSW = registerSW({
   immediate: true,

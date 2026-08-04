@@ -14,15 +14,10 @@ export default defineConfig(() => {
         injectRegister: 'auto',
         manifestFilename: 'manifest.json',
         includeAssets: [
-          'favicon.ico',
-          'apple-touch-icon.png',
+          'icon.png',
           'pwa-192x192.png',
           'pwa-512x512.png',
-          'pwa-maskable-512x512.png',
-          'icon-192.png',
-          'icon-512.png',
-          'icon-maskable.png',
-          'icon.png'
+          'pwa-maskable-512x512.png'
         ],
         manifest: {
           id: '/',
@@ -53,24 +48,6 @@ export default defineConfig(() => {
             },
             {
               src: '/pwa-maskable-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
-            },
-            {
-              src: '/icon-192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: '/icon-512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: '/icon-maskable.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
