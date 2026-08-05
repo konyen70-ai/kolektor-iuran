@@ -366,7 +366,7 @@ export default function LaporanPendapatanModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col overflow-hidden">
+    <div className="fixed top-[57px] md:top-[61px] inset-x-0 bottom-0 z-30 bg-slate-50 flex flex-col overflow-hidden animate-in fade-in duration-200">
       
       {/* HEADER MODAL */}
       <div className="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between shadow-3xs">

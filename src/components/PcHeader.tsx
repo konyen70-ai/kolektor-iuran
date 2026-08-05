@@ -30,6 +30,8 @@ interface PcHeaderProps {
   onOpenPendapatan: () => void;
   onOpenAddWarga: () => void;
   onOpenMenu: () => void;
+  isMatrixOpen?: boolean;
+  isPendapatanOpen?: boolean;
 }
 
 export const PcHeader: React.FC<PcHeaderProps> = ({
@@ -43,10 +45,12 @@ export const PcHeader: React.FC<PcHeaderProps> = ({
   onOpenMatrix,
   onOpenPendapatan,
   onOpenAddWarga,
-  onOpenMenu
+  onOpenMenu,
+  isMatrixOpen = false,
+  isPendapatanOpen = false
 }) => {
   return (
-    <header className="bg-white border-b border-slate-200/90 px-6 py-3.5 flex items-center justify-between shadow-2xs z-30 shrink-0">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-6 py-3 flex items-center justify-between shadow-xs shrink-0">
       {/* Brand Logo & Location Title */}
       <div className="flex items-center gap-3">
         <div
@@ -119,7 +123,11 @@ export const PcHeader: React.FC<PcHeaderProps> = ({
 
         <button
           onClick={onOpenMatrix}
-          className="px-3.5 py-2 rounded-lg font-bold text-xs text-slate-600 hover:text-blue-700 hover:bg-white transition-all cursor-pointer flex items-center gap-2"
+          className={`px-3.5 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            isMatrixOpen
+              ? "bg-blue-50 text-blue-800 shadow-xs border border-blue-200/80 font-black"
+              : "text-slate-600 hover:text-blue-700 hover:bg-slate-200/50"
+          }`}
         >
           <BarChart3 className="w-4 h-4 text-blue-600" />
           <span>Matriks Iuran</span>
@@ -127,7 +135,11 @@ export const PcHeader: React.FC<PcHeaderProps> = ({
 
         <button
           onClick={onOpenPendapatan}
-          className="px-3.5 py-2 rounded-lg font-bold text-xs text-slate-600 hover:text-emerald-700 hover:bg-white transition-all cursor-pointer flex items-center gap-2"
+          className={`px-3.5 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            isPendapatanOpen
+              ? "bg-emerald-50 text-emerald-800 shadow-xs border border-emerald-200/80 font-black"
+              : "text-slate-600 hover:text-emerald-700 hover:bg-slate-200/50"
+          }`}
         >
           <TrendingUp className="w-4 h-4 text-emerald-600" />
           <span>Rekap Kas</span>

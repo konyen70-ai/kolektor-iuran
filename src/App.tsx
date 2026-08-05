@@ -1579,6 +1579,8 @@ export default function App() {
               setActiveScreen("ADD_WARGA");
             }}
             onOpenMenu={() => setIsHeaderMenuOpen(true)}
+            isMatrixOpen={showMatrixModal}
+            isPendapatanOpen={showPendapatanModal}
           />
         ) : (
           <div className="shrink-0 flex flex-col w-full bg-white z-40 border-b border-slate-100 relative">

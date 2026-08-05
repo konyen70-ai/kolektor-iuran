@@ -315,7 +315,7 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col w-screen h-screen overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed top-[57px] md:top-[61px] inset-x-0 bottom-0 z-30 bg-white flex flex-col overflow-hidden animate-in fade-in duration-200">
       {/* HEADER BAR (FULL WIDTH) */}
       <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 shrink-0">
         <div className="flex items-center gap-3">
@@ -324,10 +324,10 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
           </div>
           <div>
             <h1 className="text-xs sm:text-sm font-black tracking-widest leading-none uppercase text-slate-900">
-              LAPORAN IURAN RT
+              LAPORAN MATRIKS IURAN RT
             </h1>
             <span className="text-[10px] sm:text-xs text-slate-500 font-bold tracking-wider block mt-1">
-              RT 05 RW 02
+              RT 05 RW 02 Cilangkap Tapos Depok
             </span>
           </div>
         </div>
@@ -368,7 +368,7 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
                     setShowActionMenu(false);
                     setShowPreviewModal(true);
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-800 rounded-xl transition-all flex items-center gap-2.5 cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Eye className="w-4 h-4 text-blue-600 stroke-[1.75] shrink-0" />
                   <span>Pratinjau / Preview Cetak</span>
@@ -376,8 +376,11 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
                 
                 <button
                   type="button"
-                  onClick={handlePrintMatrixReport}
-                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-800 rounded-xl transition-all flex items-center gap-2.5 cursor-pointer"
+                  onClick={() => {
+                    setShowActionMenu(false);
+                    handlePrintMatrixReport();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-800 rounded-xl transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-blue-600 stroke-[1.75] shrink-0" />
                   <span>Cetak Langsung PDF</span>
@@ -385,8 +388,11 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
 
                 <button
                   type="button"
-                  onClick={handleExportExcelMatrix}
-                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition-all flex items-center gap-2.5 cursor-pointer border-t border-slate-100 mt-1 pt-2"
+                  onClick={() => {
+                    setShowActionMenu(false);
+                    handleExportExcelMatrix();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition-all flex items-center gap-2 cursor-pointer border-t border-slate-100 mt-1 pt-2"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600 stroke-[1.75] shrink-0" />
                   <span>Export File Excel</span>
@@ -395,14 +401,14 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
             )}
           </div>
 
-          {/* Close button (X) in RED without frame */}
+          {/* Close button (X) */}
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
             title="Tutup Laporan"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -569,20 +575,20 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
           </div>
 
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
+            <table className="w-full table-fixed text-left border-collapse min-w-[950px]">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
                 <tr>
-                  <th className="py-2.5 px-3 text-center w-10">#</th>
-                  <th className="py-2.5 px-4 min-w-[180px]">Nama Kepala Keluarga</th>
-                  <th className="py-2.5 px-3 text-center w-20">Rumah</th>
+                  <th className="py-3 px-2 text-center w-12 border-r border-slate-200/60 shrink-0">#</th>
+                  <th className="py-3 px-3.5 text-left w-64 border-r border-slate-200/60">Nama Kepala Keluarga</th>
+                  <th className="py-3 px-2 text-center w-24 border-r border-slate-200/60">No. Rumah</th>
 
                   {/* 12 Bulan Columns */}
                   {LIST_BULAN_2026.map((b) => (
-                    <th key={b.id} className="py-2.5 px-1 text-center font-sans font-black w-10">
+                    <th key={b.id} className="py-3 px-1 text-center font-sans font-black w-12 border-r border-slate-200/40">
                       {b.namaBulan.split(" ")[0].substring(0, 3).toUpperCase()}
                     </th>
                   ))}
-                  <th className="py-2.5 px-3 text-center w-16">Total</th>
+                  <th className="py-3 px-2 text-center w-20">Total Lunas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-[11px] font-bold">
@@ -599,14 +605,16 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
                     const kolektorName = w.namaKolektor || "Is Tentrem";
 
                     return (
-                      <tr key={w.id} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="py-2.5 px-3 text-center text-slate-400 text-[11px] font-mono">
+                      <tr key={w.id} className="hover:bg-blue-50/50 transition-colors">
+                        <td className="py-2.5 px-2 text-center text-slate-400 text-[11px] font-mono border-r border-slate-100">
                           {index + 1}
                         </td>
-                        <td className="py-2.5 px-4 font-bold text-slate-800 text-[11px]">
-                          <div>{w.namaKepalaKeluarga}</div>
+                        <td className="py-2.5 px-3.5 font-bold text-slate-800 text-[11px] border-r border-slate-100 truncate">
+                          <span className="truncate block" title={w.namaKepalaKeluarga}>
+                            {w.namaKepalaKeluarga}
+                          </span>
                         </td>
-                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-600 text-[11px]">
+                        <td className="py-2.5 px-2 text-center font-mono font-extrabold text-slate-700 text-[11px] border-r border-slate-100 bg-slate-50/30">
                           {w.nomorRumah}
                         </td>
 
@@ -615,23 +623,23 @@ export default function LaporanMatrixModal({ wargaList, onClose }: LaporanMatrix
                           const isPaid = w.historyPembayaran.includes(bulan.id);
 
                           return (
-                            <td key={bulan.id} className="py-2.5 px-1 text-center">
+                            <td key={bulan.id} className="py-2.5 px-1 text-center border-r border-slate-100/60">
                               {isPaid ? (
                                 <span
                                   title={`Lunas (${formatMonthId(bulan.id)})`}
-                                  className="inline-block w-2.5 h-2.5 bg-emerald-500 rounded-full cursor-default align-middle"
+                                  className="inline-flex items-center justify-center w-3 h-3 bg-emerald-500 rounded-full cursor-default align-middle shadow-2xs"
                                 />
                               ) : (
                                 <span
                                   title={`Belum Lunas (${formatMonthId(bulan.id)})`}
-                                  className="inline-block w-2.5 h-2.5 bg-rose-300 rounded-full cursor-default align-middle"
+                                  className="inline-flex items-center justify-center w-3 h-3 bg-rose-300 rounded-full cursor-default align-middle"
                                 />
                               )}
                             </td>
                           );
                         })}
 
-                        <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-700 text-[11px]">
+                        <td className="py-2.5 px-2 text-center font-mono font-black text-blue-700 text-[11px] bg-blue-50/30">
                           {w.historyPembayaran.length}/12
                         </td>
                       </tr>
