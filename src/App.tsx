@@ -1088,6 +1088,67 @@ export default function App() {
   };
 
   if (showSplash) {
+    if (isPcLayout) {
+      return (
+        <div className="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-8 font-sans relative overflow-hidden text-center text-white selection:bg-blue-200">
+          {/* Subtle background glow */}
+          <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="flex flex-col items-center space-y-6 relative z-10 max-w-md"
+          >
+            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/20 border border-blue-400/30">
+              <QrCode className="w-11 h-11 text-white stroke-[2.2]" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black tracking-wider uppercase text-white font-sans">
+                Kolektor Iuran RT 05 RW 02
+              </h1>
+              <span className="text-xs text-blue-400 font-bold block tracking-widest uppercase">
+                Sistem Digital Pengelolaan & Penagihan Keuangan Mandiri
+              </span>
+            </div>
+
+            <div className="pt-6 flex flex-col items-center space-y-3">
+              <div className="flex space-x-2.5 items-center justify-center">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <motion.div
+                    key={index}
+                    className="w-3 h-3 bg-blue-500 rounded-full"
+                    animate={{
+                      y: ["0%", "-120%", "0%"],
+                      scale: [1, 1.25, 1],
+                      backgroundColor: ["#3b82f6", "#60a5fa", "#3b82f6"],
+                    }}
+                    transition={{
+                      duration: 0.9,
+                      repeat: Infinity,
+                      delay: index * 0.15,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-slate-400 font-bold tracking-widest uppercase animate-pulse">
+                Memuat Sistem Desktop...
+              </span>
+            </div>
+          </motion.div>
+
+          <div className="absolute bottom-8 left-0 right-0 text-center z-10">
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+              Aplikasi Kolektor RT 05 RW 02 Cilangkap Tapos Depok © 2026
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
         <div
@@ -1195,13 +1256,170 @@ export default function App() {
       setLoginPassword("");
     };
 
+    if (isPcLayout) {
+      return (
+        <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-6 lg:p-12 font-sans selection:bg-blue-200">
+          <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[560px]">
+            {/* Left Column: Branding & Features */}
+            <div className="md:col-span-6 lg:col-span-7 bg-slate-900 text-white p-8 lg:p-12 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                    <QrCode className="w-6 h-6 stroke-[2.2]" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-blue-400 tracking-wider uppercase block">
+                      Aplikasi Web Desktop
+                    </span>
+                    <h1 className="text-lg font-black tracking-wide uppercase text-white leading-tight">
+                      Iuran RT 05 RW 02
+                    </h1>
+                  </div>
+                </div>
+
+                <div className="mt-10 space-y-3">
+                  <h2 className="text-2xl font-black text-white leading-tight">
+                    Sistem Digital Pengelolaan Keuangan Warga
+                  </h2>
+                  <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                    Kelola setoran iuran, cetak kwitansi, pantau rekap bulanan matrix, serta cetak kartu QR Code warga dengan cepat dan akurat.
+                  </p>
+                </div>
+
+                <div className="mt-8 space-y-2.5">
+                  <div className="flex items-center gap-3 bg-slate-800/70 border border-slate-700/60 p-3 rounded-xl">
+                    <div className="w-7 h-7 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-200">
+                      Sinkronisasi Database Real-time (Firestore Cloud)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 bg-slate-800/70 border border-slate-700/60 p-3 rounded-xl">
+                    <div className="w-7 h-7 bg-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center shrink-0">
+                      <BarChart3 className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-200">
+                      Ekspor Laporan PDF, Excel & Matriks Lunas Bulanan
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 bg-slate-800/70 border border-slate-700/60 p-3 rounded-xl">
+                    <div className="w-7 h-7 bg-amber-500/20 text-amber-400 rounded-lg flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-200">
+                      Akses Terpisah: Administrator & Kolektor Sesi
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-800 text-xs text-slate-400 font-medium relative z-10 flex justify-between items-center">
+                <span>RT 05 / RW 02 Cilangkap, Tapos, Depok</span>
+                <span className="text-slate-500 font-bold">v1.2 Desktop</span>
+              </div>
+            </div>
+
+            {/* Right Column: Form Login */}
+            <div className="md:col-span-6 lg:col-span-5 bg-white p-8 lg:p-12 flex flex-col justify-center space-y-6">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Login Sesi Petugas</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Masukkan akun petugas untuk membuka dashboard pengelolaan.
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold"
+                  >
+                    {loginError}
+                  </motion.div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-slate-600 tracking-wider block">Username</label>
+                  <input
+                    type="text"
+                    placeholder="admin atau kolektor"
+                    value={loginUsername}
+                    onChange={(e) => {
+                      setLoginUsername(e.target.value);
+                      setLoginError("");
+                    }}
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-semibold transition-all text-slate-800"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-slate-600 tracking-wider block">Password</label>
+                  <input
+                    type="password"
+                    placeholder="••••••"
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      setLoginError("");
+                    }}
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-semibold transition-all text-slate-800"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-md transition-all cursor-pointer text-center mt-2"
+                >
+                  Masuk Sekarang
+                </button>
+
+                <div className="pt-4 border-t border-slate-100 space-y-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block text-center">
+                    Login Cepat Demo:
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin("admin")}
+                      className="py-2.5 px-3 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-xs font-bold text-slate-700 hover:text-blue-700 rounded-xl transition-all cursor-pointer text-center active:scale-95"
+                    >
+                      👤 Login Admin
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin("kolektor")}
+                      className="py-2.5 px-3 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-xs font-bold text-slate-700 hover:text-blue-700 rounded-xl transition-all cursor-pointer text-center active:scale-95"
+                    >
+                      👤 Login Kolektor
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              <div className="text-center pt-2">
+                <span className="text-xs text-slate-400 font-medium">Password bawaan: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono font-bold">123456</code></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Render login page for mobile
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
         <div
           className="w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative justify-between p-6"
           id="android-phone-frame"
         >
-          {/* Status Bar */}
+          {/* Status Bar for mobile view only */}
           <div className="hidden sm:flex bg-slate-50 text-slate-700/80 px-6 py-2 justify-between items-center text-[10px] font-bold tracking-widest select-none shrink-0 border-b border-slate-100/60 -mx-6 -mt-6 mb-4">
             <span>09:41</span>
             <div className="w-20 h-4 bg-slate-200/60 rounded-full flex items-center justify-center border border-slate-200 text-[8px] text-slate-500 font-extrabold uppercase scale-90">
@@ -1216,18 +1434,18 @@ export default function App() {
           </div>
 
           {/* Header area with app identity */}
-          <div className="flex flex-col items-center text-center mt-4 space-y-4">
+          <div className="flex flex-col items-center text-center space-y-3">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-600/20">
               <QrCode className="w-6 h-6 text-white stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase">MASUK PETUGAS</h2>
-              <span className="text-[10px] text-slate-500 font-bold block mt-1 tracking-wider">RT 05 RW 02 - KOLEKTOR</span>
+              <h2 className="text-base font-extrabold text-slate-900 tracking-wide uppercase">LOGIN PETUGAS RT</h2>
+              <span className="text-xs text-slate-500 font-medium block mt-1">Sistem Iuran RT 05 RW 02 Cilangkap Tapos</span>
             </div>
           </div>
 
           {/* Form area */}
-          <form onSubmit={handleLogin} className="flex-1 flex flex-col justify-center space-y-4 my-4 max-w-[300px] mx-auto w-full">
+          <form onSubmit={handleLogin} className="flex-1 flex flex-col justify-center space-y-4 my-2 w-full">
             {loginError && (
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
@@ -1239,7 +1457,7 @@ export default function App() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block">Username</label>
+              <label className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">Username</label>
               <input
                 type="text"
                 placeholder="admin / kolektor"
@@ -1254,7 +1472,7 @@ export default function App() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block">Password</label>
+              <label className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">Password</label>
               <input
                 type="password"
                 placeholder="••••••"
@@ -1270,26 +1488,26 @@ export default function App() {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-blue-600/10 transition-all cursor-pointer text-center hover:shadow-lg hover:shadow-blue-600/20 active:scale-95 mt-2"
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer text-center active:scale-95 mt-2"
             >
               Masuk Sekarang
             </button>
 
-            {/* Quick Fill Accounts (for easy testing as requested) */}
+            {/* Quick Fill Accounts */}
             <div className="pt-4 border-t border-slate-100 text-center">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">PILIH AKUN INSTAN</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Login Cepat Test:</span>
               <div className="flex gap-2 justify-center">
                 <button
                   type="button"
                   onClick={() => handleQuickLogin("admin")}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-[10px] font-black text-slate-700 hover:text-blue-700 rounded-lg transition-all cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-xs font-bold text-slate-700 hover:text-blue-700 rounded-lg transition-all cursor-pointer active:scale-95"
                 >
                   👤 Admin
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickLogin("kolektor")}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-[10px] font-black text-slate-700 hover:text-blue-700 rounded-lg transition-all cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 border border-slate-200 text-xs font-bold text-slate-700 hover:text-blue-700 rounded-lg transition-all cursor-pointer active:scale-95"
                 >
                   👤 Kolektor
                 </button>
@@ -1298,9 +1516,8 @@ export default function App() {
           </form>
 
           {/* Footer of login */}
-          <div className="text-center mb-4">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">PASSWORD DEFAULT: 123456</span>
-            <span className="text-[8px] text-slate-300 font-bold uppercase tracking-widest block mt-1">Sistem Digital RT v1.1</span>
+          <div className="text-center">
+            <span className="text-[10px] text-slate-400 font-semibold block">Password default: 123456</span>
           </div>
         </div>
       </div>
@@ -1308,93 +1525,21 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200">
+    <div className={isPcLayout ? "min-h-screen w-full bg-slate-50 flex flex-col font-sans selection:bg-blue-200" : "min-h-screen bg-slate-100 flex flex-col items-center justify-center p-0 sm:p-5 md:p-8 font-sans selection:bg-blue-200"}>
       {/* Modal PWA Install Prompt */}
       <PWAInstallModal
         isOpen={activeModal === "PWA_GUIDE" || activeModal === ("PWA_INSTALL" as any) ? true : undefined}
         onClose={() => setActiveModal("NONE")}
       />
 
-      {/* Floating Top Bar for PC / Laptop View Switcher */}
-      {windowWidth >= 1024 && (
-        <div className="w-full max-w-6xl xl:max-w-7xl mb-3 px-4 py-2.5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between text-xs font-semibold text-slate-700 shrink-0 z-50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black shadow-xs">
-              <QrCode className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="font-black text-slate-900 uppercase tracking-wide block leading-none text-xs">
-                KOLEKTOR IURAN RT 05 RW 02
-              </span>
-              <span className="text-[10px] text-slate-500 font-semibold block leading-tight">
-                Aplikasi Pengelolaan & Penagihan Iuran Digital
-              </span>
-            </div>
-          </div>
-
-          {/* Mode Switcher Buttons */}
-          <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
-            <button
-              onClick={() => handleViewModeChange("AUTO")}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "AUTO"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="Otomatis menyesuaikan dengan layar device"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Otomatis</span>
-            </button>
-            <button
-              onClick={() => handleViewModeChange("DESKTOP")}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "DESKTOP"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="Tampilan Luas Khusus Laptop & PC"
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              <span>Mode Laptop / PC</span>
-            </button>
-            <button
-              onClick={() => handleViewModeChange("MOBILE")}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "MOBILE"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200/60"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="Tampilan Frame Handphone (Sesuai Desain Awal)"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Mode Handphone</span>
-            </button>
-          </div>
-
-          {/* Right Badge Info */}
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-              {isOnline ? "Online Cloud" : "Offline Mode"}
-            </span>
-            {currentUser && (
-              <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-                👤 {currentUser.username.toUpperCase()}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Bingkai Utama Aplikasi (Versi Responsive HP & PC) */}
+      {/* Main Container */}
       <div
         className={
           isPcLayout
-            ? "w-full max-w-6xl xl:max-w-7xl bg-white sm:rounded-2xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col min-h-screen lg:min-h-[85vh] lg:h-[880px] relative transition-all duration-300"
+            ? "w-full min-h-screen bg-slate-50 flex flex-col relative"
             : "w-full max-w-sm bg-white sm:rounded-3xl sm:shadow-xl sm:border border-slate-200 overflow-hidden flex flex-col h-screen sm:h-[760px] relative transition-all duration-300"
         }
-        id="android-phone-frame"
+        id={isPcLayout ? undefined : "android-phone-frame"}
       >
         {/* Navigation Drawer Overlay */}
         <NavigationDrawer

@@ -84,11 +84,11 @@ export const PcDashboardView: React.FC<PcDashboardViewProps> = ({
                   • {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </span>
               </div>
-              <h2 className="text-xl font-black text-white capitalize tracking-wide">
-                Selamat Datang, {currentUser?.username || "Petugas"}!
+              <h2 className="text-xl font-bold text-white capitalize tracking-wide">
+                Selamat Datang, {currentUser?.username || "Petugas"}
               </h2>
-              <p className="text-xs text-blue-100/90 font-medium max-w-xl">
-                Pantau real-time setoran iuran warga RT 05 RW 02, lakukan pencatatan transaksi cepat, atau cetak laporan dalam sekali klik.
+              <p className="text-xs text-blue-100 font-medium max-w-md">
+                Ringkasan kas & penagihan iuran warga RT 05 RW 02.
               </p>
             </div>
 

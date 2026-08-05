@@ -51,22 +51,19 @@ export const PcHeader: React.FC<PcHeaderProps> = ({
       <div className="flex items-center gap-3">
         <div
           onClick={() => setActiveScreen("DASHBOARD")}
-          className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-600/20 cursor-pointer hover:bg-blue-700 transition-all shrink-0"
+          className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-sm cursor-pointer hover:bg-blue-700 transition-all shrink-0"
         >
-          <QrCode className="w-6 h-6 stroke-[2.2]" />
+          <QrCode className="w-5 h-5 stroke-[2.2]" />
         </div>
         <div onClick={() => setActiveScreen("DASHBOARD")} className="cursor-pointer">
           <div className="flex items-center gap-2">
-            <h1 className="text-sm font-black tracking-wider uppercase text-slate-900 leading-none">
-              KOLEKTOR IURAN RT 05 RW 02
+            <h1 className="text-sm font-extrabold tracking-wide text-slate-900 leading-none">
+              Iuran RT 05 RW 02
             </h1>
-            <span className="bg-blue-50 text-blue-700 border border-blue-200/80 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase">
-              TAPOS DEPOK
+            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+              {wargaCount} Warga
             </span>
           </div>
-          <span className="text-[11px] font-semibold text-slate-500 block mt-1">
-            Sistem Digital Pengelolaan & Penagihan Iuran Mandiri • Total {wargaCount} Warga
-          </span>
         </div>
       </div>
 
